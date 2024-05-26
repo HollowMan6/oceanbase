@@ -10,8 +10,8 @@
  * See the Mulan PubL v2 for more details.
  */
 
-#ifndef SRC_SHARE_VECTOR_INDEX_OB_IVFFLAT_INDEX_SAMPLE_CACHE_H_
-#define SRC_SHARE_VECTOR_INDEX_OB_IVFFLAT_INDEX_SAMPLE_CACHE_H_
+#ifndef SRC_SHARE_VECTOR_INDEX_OB_IVF_INDEX_SAMPLE_CACHE_H_
+#define SRC_SHARE_VECTOR_INDEX_OB_IVF_INDEX_SAMPLE_CACHE_H_
 
 #include "lib/ob_define.h"
 #include "lib/container/ob_heap.h"
@@ -38,10 +38,10 @@ struct ObMysqlResultIterator
 
 };
 
-class ObIvfflatFixSampleCache
+class ObIvfFixSampleCache
 {
 public:
-  ObIvfflatFixSampleCache(ObISQLClient::ReadResult &result, common::ObISQLClient &sql_client)
+  ObIvfFixSampleCache(ObISQLClient::ReadResult &result, common::ObISQLClient &sql_client)
     : is_inited_(false),
       tenant_id_(OB_INVALID_TENANT_ID),
       total_cnt_(0),
@@ -56,7 +56,7 @@ public:
       samples_(),
       inner_conn_(nullptr)
   {}
-  ObIvfflatFixSampleCache(ObISQLClient::ReadResult &result, observer::ObInnerSQLConnection *inner_conn)
+  ObIvfFixSampleCache(ObISQLClient::ReadResult &result, observer::ObInnerSQLConnection *inner_conn)
     : is_inited_(false),
       tenant_id_(OB_INVALID_TENANT_ID),
       total_cnt_(0),
@@ -70,11 +70,14 @@ public:
       samples_(),
       inner_conn_(inner_conn)
   {}
-  ~ObIvfflatFixSampleCache() { destroy(); }
+  ~ObIvfFixSampleCache() { destroy(); }
   int init(
       const int64_t tenant_id,
       const int64_t lists,
-      ObSqlString &select_sql_string);
+      ObSqlString &select_sql_string,
+      ObLabel allocator_label,
+      ObLabel samples_label,
+      int64_t sample_cnt);
   void destroy();
   bool is_inited() const { return is_inited_; }
   int read();

@@ -231,7 +231,7 @@ int ObDASUtils::project_storage_row(const ObDASDMLBaseCtDef &dml_ctdef,
                 K(dml_row.cells()[row_projector.at(j)]), K(dml_ctdef.column_types_.at(j)));
             } else if (OB_FAIL(obj.get_vector(vector))) {
               LOG_WARN("failed to get vector", K(ret), K(obj));
-            } else if (OB_FAIL(MTL(ObTenantIvfflatCenterCache*)->get_nearest_center(
+            } else if (OB_FAIL(MTL(ObTenantIvfCenterCache*)->get_nearest_center(
                 vector, dml_ctdef.table_param_.get_data_table().get_table_id(), *tablet_id, storage_row.cells_[i]))) {
               LOG_WARN("failed to get nearest center", K(ret));
             }

@@ -12,7 +12,7 @@
 
 #define USING_LOG_PREFIX COMMON
 
-#include "share/vector_index/ob_ivfflat_index_sample_cache.h"
+#include "share/vector_index/ob_ivf_index_sample_cache.h"
 #include "observer/omt/ob_tenant_config_mgr.h"
 
 namespace oceanbase
@@ -46,12 +46,15 @@ int ObMysqlResultIterator::get_next_vector(ObTypeVector &vector)
 }
 
 /*
-* ObIvfflatFixSampleCache Impl
+* ObIvfFixSampleCache Impl
 */
-int ObIvfflatFixSampleCache::init(
+int ObIvfFixSampleCache::init(
     const int64_t tenant_id,
     const int64_t lists,
-    ObSqlString &select_sql_string)
+    ObSqlString &select_sql_string,
+    ObLabel allocator_label,
+    ObLabel samples_label,
+    int64_t sample_cnt)
 {
   int ret = OB_SUCCESS;
   if (IS_INIT) {
@@ -64,13 +67,10 @@ int ObIvfflatFixSampleCache::init(
     LOG_WARN("failed to assign sql string", K(ret), K(select_sql_string));
   } else {
     tenant_id_ = tenant_id;
-    allocator_.set_attr(ObMemAttr(tenant_id, "IvfflatCache"));
-    samples_.set_attr(ObMemAttr(tenant_id, "IvfflatSamps"));
+    allocator_.set_attr(ObMemAttr(tenant_id, allocator_label));
+    samples_.set_attr(ObMemAttr(tenant_id, samples_label));
     limit_memory_size_ = (double)MAX_CACHE_MEMORY_RATIO / 100 * lib::get_tenant_memory_limit(tenant_id);
-    {
-      omt::ObTenantConfigGuard tenant_config(TENANT_CONF(tenant_id_));
-      sample_cnt_ = tenant_config->vector_ivfflat_sample_count;
-    }
+    sample_cnt_ = sample_cnt;
     if (0 == sample_cnt_) { // only cache some samples
       if (OB_FAIL(init_cache())) {
         LOG_WARN("failed to init cache", K(ret));
@@ -89,7 +89,7 @@ int ObIvfflatFixSampleCache::init(
   return ret;
 }
 
-int64_t ObIvfflatFixSampleCache::to_string(char *buf, const int64_t buf_len) const
+int64_t ObIvfFixSampleCache::to_string(char *buf, const int64_t buf_len) const
 {
   int64_t pos = 0;
   if (OB_ISNULL(buf) || buf_len <= 0) {
@@ -101,7 +101,7 @@ int64_t ObIvfflatFixSampleCache::to_string(char *buf, const int64_t buf_len) con
   return pos;
 }
 
-int ObIvfflatFixSampleCache::init_reservoir_samples()
+int ObIvfFixSampleCache::init_reservoir_samples()
 {
   int ret = OB_SUCCESS;
   if (OB_FAIL(sql_proxy_->read(result_, tenant_id_, select_str_.ptr()))) {
@@ -147,7 +147,7 @@ int ObIvfflatFixSampleCache::init_reservoir_samples()
   return ret;
 }
 
-int ObIvfflatFixSampleCache::init_cache()
+int ObIvfFixSampleCache::init_cache()
 {
   int ret = OB_SUCCESS;
   if (OB_NOT_NULL(inner_conn_)
@@ -197,7 +197,7 @@ int ObIvfflatFixSampleCache::init_cache()
   return ret;
 }
 
-int ObIvfflatFixSampleCache::alloc_and_copy_vector(const ObTypeVector& other, ObTypeVector *&vector)
+int ObIvfFixSampleCache::alloc_and_copy_vector(const ObTypeVector& other, ObTypeVector *&vector)
 {
   int ret = OB_SUCCESS;
   vector = nullptr;
@@ -218,7 +218,7 @@ int ObIvfflatFixSampleCache::alloc_and_copy_vector(const ObTypeVector& other, Ob
   return ret;
 }
 
-void ObIvfflatFixSampleCache::destory_vector(ObTypeVector *&vector)
+void ObIvfFixSampleCache::destory_vector(ObTypeVector *&vector)
 {
   if (OB_NOT_NULL(vector)) {
     vector->destroy(allocator_); // free ptr
@@ -227,18 +227,18 @@ void ObIvfflatFixSampleCache::destory_vector(ObTypeVector *&vector)
   }
 }
 
-void ObIvfflatFixSampleCache::destroy()
+void ObIvfFixSampleCache::destroy()
 {
   is_inited_ = false;
   allocator_.reset();
 }
 
-int ObIvfflatFixSampleCache::read()
+int ObIvfFixSampleCache::read()
 {
   int ret = OB_SUCCESS;
   if (IS_NOT_INIT) {
     ret = OB_NOT_INIT;
-    LOG_WARN("ObIvfflatFixSampleCache is not inited", K(ret));
+    LOG_WARN("ObIvfFixSampleCache is not inited", K(ret));
   } else if (sample_cnt_ > 0 || total_cnt_ == samples_.count()) {
     // do nothing
   } else if (OB_NOT_NULL(inner_conn_)
@@ -255,12 +255,12 @@ int ObIvfflatFixSampleCache::read()
   return ret;
 }
 
-int ObIvfflatFixSampleCache::get_next_vector(ObTypeVector &vector)
+int ObIvfFixSampleCache::get_next_vector(ObTypeVector &vector)
 {
   int ret = OB_SUCCESS;
   if (IS_NOT_INIT) {
     ret = OB_NOT_INIT;
-    LOG_WARN("ObIvfflatFixSampleCache is not inited", K(ret));
+    LOG_WARN("ObIvfFixSampleCache is not inited", K(ret));
   } else if (OB_FAIL(get_next_vector_by_cache(vector))) {
     if (OB_ITER_END == ret) {
       if (sample_cnt_ > 0) {
@@ -277,7 +277,7 @@ int ObIvfflatFixSampleCache::get_next_vector(ObTypeVector &vector)
   return ret;
 }
 
-int ObIvfflatFixSampleCache::get_random_vector(ObTypeVector &vector)
+int ObIvfFixSampleCache::get_random_vector(ObTypeVector &vector)
 {
   int ret = OB_SUCCESS;
   // TODO(@jingshui): random
@@ -292,7 +292,7 @@ int ObIvfflatFixSampleCache::get_random_vector(ObTypeVector &vector)
   return ret;
 }
 
-int ObIvfflatFixSampleCache::get_next_vector_by_sql(ObTypeVector &vector)
+int ObIvfFixSampleCache::get_next_vector_by_sql(ObTypeVector &vector)
 {
   int ret = OB_SUCCESS;
   // 目前依赖特定的sql string
@@ -305,7 +305,7 @@ int ObIvfflatFixSampleCache::get_next_vector_by_sql(ObTypeVector &vector)
   return ret;
 }
 
-int ObIvfflatFixSampleCache::get_next_vector_by_cache(ObTypeVector &vector)
+int ObIvfFixSampleCache::get_next_vector_by_cache(ObTypeVector &vector)
 {
   int ret = OB_SUCCESS;
   if (cur_idx_ >= samples_.count()) {

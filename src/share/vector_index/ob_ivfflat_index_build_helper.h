@@ -21,7 +21,7 @@
 #include "lib/vector/ob_vector.h"
 #include "observer/ob_inner_sql_connection.h"
 #include "share/schema/ob_table_schema.h"
-#include "share/vector_index/ob_ivfflat_index_sample_cache.h"
+#include "share/vector_index/ob_ivf_index_sample_cache.h"
 
 namespace oceanbase {
 namespace sql {
@@ -70,7 +70,7 @@ public:
   bool skip_insert() const { return FINISH == status_ && 0 == total_cnt_; }
   int64_t get_lists() const { return lists_; }
 
-  int set_sample_cache(ObIvfflatFixSampleCache *cache);
+  int set_sample_cache(ObIvfFixSampleCache *cache);
   int set_center_cache(const int64_t table_id);
 
   int set_partition_name(common::ObTabletID &tablet_id, uint64_t base_table_id);
@@ -149,7 +149,7 @@ private:
   float *upper_bounds_; // 每个向量一个结果
   float *weight_;       // for kmeans++
   // sample cache
-  ObIvfflatFixSampleCache *cache_; // no need to reset
+  ObIvfFixSampleCache *cache_; // no need to reset
   ObString partition_name_;
   int64_t partition_idx_;
   common::ObArenaAllocator allocator_for_partition_name_;

@@ -4395,7 +4395,7 @@ int ObDDLOperator::drop_table(
         part_count = table_schema.get_part_option().get_part_num();
       }
       MTL_SWITCH(tenant_id) {
-        if (OB_TMP_FAIL(MTL(ObTenantIvfflatCenterCache*)->drop(table_schema.get_table_id(), part_count))) {
+        if (OB_TMP_FAIL(MTL(ObTenantIvfCenterCache*)->drop(table_schema.get_table_id(), part_count))) {
           LOG_WARN("failed to drop center cache", K(tmp_ret), K(table_schema));
         }
       }

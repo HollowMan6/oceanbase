@@ -159,7 +159,7 @@
 #include "share/index_usage/ob_index_usage_info_mgr.h"
 #include "rootserver/mview/ob_mview_maintenance_service.h"
 #include "share/vector_index/ob_hnsw_ann_helper.h"
-#include "share/vector_index/ob_tenant_ivfflat_center_cache.h"
+#include "share/vector_index/ob_tenant_ivf_center_cache.h"
 
 using namespace oceanbase;
 using namespace oceanbase::lib;
@@ -483,7 +483,7 @@ int ObMultiTenant::init(ObAddr myaddr,
     MTL_BIND2(mtl_new_default, rootserver::ObPrimaryLSService::mtl_init, nullptr, rootserver::ObPrimaryLSService::mtl_stop, rootserver::ObPrimaryLSService::mtl_wait, mtl_destroy_default);
     MTL_BIND2(mtl_new_default, rootserver::ObCommonLSService::mtl_init, nullptr, rootserver::ObCommonLSService::mtl_stop, rootserver::ObCommonLSService::mtl_wait, mtl_destroy_default);
     MTL_BIND2(mtl_new_default, share::ObHNSWAnnHelper::mtl_init, nullptr, nullptr, nullptr, mtl_destroy_default);
-    MTL_BIND2(mtl_new_default, share::ObTenantIvfflatCenterCache::mtl_init, nullptr, nullptr, nullptr, mtl_destroy_default);
+    MTL_BIND2(mtl_new_default, share::ObTenantIvfCenterCache::mtl_init, nullptr, nullptr, nullptr, mtl_destroy_default);
 #ifdef OB_BUILD_ARBITRATION
     MTL_BIND2(mtl_new_default, rootserver::ObArbitrationService::mtl_init, mtl_start_default, rootserver::ObArbitrationService::mtl_stop, rootserver::ObArbitrationService::mtl_wait, mtl_destroy_default);
 #endif

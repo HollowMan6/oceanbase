@@ -212,7 +212,7 @@ class ObTenantErrsimEventMgr;
 class ObSharedMemAllocMgr;
 class ObIndexUsageInfoMgr;
 class ObHNSWAnnHelper;
-class ObTenantIvfflatCenterCache;
+class ObTenantIvfCenterCache;
 namespace schema
 {
   class ObTenantSchemaService;
@@ -356,7 +356,7 @@ using ObTableScanIteratorObjPool = common::ObServerObjectPool<oceanbase::storage
       storage::ObTabletMemtableMgrPool*,            \
       rootserver::ObMViewMaintenanceService*,        \
       share::ObHNSWAnnHelper*,                       \
-      share::ObTenantIvfflatCenterCache*            \
+      share::ObTenantIvfCenterCache*            \
   )
 
 

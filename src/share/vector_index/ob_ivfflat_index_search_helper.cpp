@@ -108,7 +108,7 @@ int ObIvfflatIndexSearchHelper::reset_centers()
 {
   int ret = OB_SUCCESS;
   centers_ = nullptr; // reset
-  if (OB_FAIL(MTL(ObTenantIvfflatCenterCache*)->get(index_table_id_, partition_idx_, centers_))) {
+  if (OB_FAIL(MTL(ObTenantIvfCenterCache *)->get(index_table_id_, partition_idx_, centers_))) {
     LOG_WARN("failed to get center cache", K(ret), K(index_table_id_), K(partition_idx_));
   }
   return ret;
@@ -116,7 +116,7 @@ int ObIvfflatIndexSearchHelper::reset_centers()
 
 int ObIvfflatIndexSearchHelper::set_partition_name(common::ObTabletID &tablet_id)
 {
-  return ObTenantIvfflatCenterCache::set_partition_name(
+  return ObTenantIvfCenterCache::set_partition_name(
       tenant_id_, index_table_id_, tablet_id, allocator_, partition_name_, partition_idx_);
 }
 

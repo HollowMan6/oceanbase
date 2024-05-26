@@ -520,8 +520,10 @@ int ObBuildVectorIndexDummyResult::get_next_row()
     LOG_WARN("fail to start transaction", KR(ret), K(MTL_ID()));
   } else  {
     SMART_VAR(ObISQLClient::ReadResult, result) {
-      ObIvfflatFixSampleCache cache(result, trans);
-      if (OB_FAIL(cache.init(MTL_ID(), ivfflat_build_helper_->get_lists(), select_sql_string))) {
+      ObIvfFixSampleCache cache(result, trans);
+      omt::ObTenantConfigGuard tenant_config(TENANT_CONF(MTL_ID()));
+      if (OB_FAIL(cache.init(MTL_ID(), ivfflat_build_helper_->get_lists(), select_sql_string,
+                             "IvfflatCache", "IvfflatSamps", tenant_config->vector_ivfflat_sample_count))) {
         LOG_WARN("failed to init sample cache", K(ret));
       } else if (OB_FAIL(ivfflat_build_helper_->set_sample_cache(&cache))) {
         LOG_WARN("failed to set sample cache", K(ret));

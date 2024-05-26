@@ -21,7 +21,7 @@
 #include "share/schema/ob_multi_version_schema_service.h"
 #include "share/schema/ob_schema_getter_guard.h"
 #include "share/schema/ob_table_param.h"
-#include "share/vector_index/ob_tenant_ivfflat_center_cache.h"
+#include "share/vector_index/ob_tenant_ivf_center_cache.h"
 
 namespace oceanbase {
 namespace share {
@@ -547,7 +547,7 @@ int ObIvfflatIndexBuildHelper::get_patch_pkeys_for_center_dummy_pkeys_array(
 
 int ObIvfflatIndexBuildHelper::set_partition_name(common::ObTabletID &tablet_id,
                                                   uint64_t base_table_id) {
-  return ObTenantIvfflatCenterCache::set_partition_name(
+  return ObTenantIvfCenterCache::set_partition_name(
       tenant_id_, base_table_id, tablet_id, allocator_for_partition_name_,
       partition_name_, partition_idx_);
 }
@@ -822,7 +822,7 @@ int ObIvfflatIndexBuildHelper::construct_select_sql_string_simple(
 }
 
 int ObIvfflatIndexBuildHelper::set_sample_cache(
-    ObIvfflatFixSampleCache *cache) {
+        ObIvfFixSampleCache *cache) {
   int ret = OB_SUCCESS;
   if (OB_ISNULL(cache) || !cache->is_inited()) {
     ret = OB_INVALID_ARGUMENT;
@@ -841,7 +841,7 @@ int ObIvfflatIndexBuildHelper::set_center_cache(const int64_t table_id) {
     LOG_WARN("status not match", K(ret), K_(status));
   } else {
     MTL_SWITCH(tenant_id_) {
-      if (OB_FAIL(MTL(ObTenantIvfflatCenterCache *)
+      if (OB_FAIL(MTL(ObTenantIvfCenterCache *)
                       ->put(table_id, partition_idx_, distance_type_,
                             center_vectors_[cur_idx_]))) {
         LOG_WARN("failed to put int cache", K(ret));

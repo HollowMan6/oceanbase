@@ -10,7 +10,7 @@
  * See the Mulan PubL v2 for more details.
  */
 #define USING_LOG_PREFIX COMMON
-#include "share/vector_index/ob_tenant_ivfflat_center_cache.h"
+#include "share/vector_index/ob_tenant_ivf_center_cache.h"
 #include "share/rc/ob_tenant_base.h"
 #include "share/schema/ob_schema_getter_guard.h"
 #include "observer/ob_server_struct.h"
@@ -20,9 +20,9 @@ namespace oceanbase
 namespace share
 {
 /*
-* ObTableIvfflatCenters Impl
+* ObTableIvfCenters Impl
 */
-int ObTableIvfflatCenters::init(const int64_t tenant_id, const common::ObIArray<ObTypeVector *> &array)
+int ObTableIvfCenters::init(const int64_t tenant_id, const common::ObIArray<ObTypeVector *> &array)
 {
   int ret = OB_SUCCESS;
   if (array.empty()) {
@@ -49,7 +49,7 @@ int ObTableIvfflatCenters::init(const int64_t tenant_id, const common::ObIArray<
   return ret;
 }
 
-int ObTableIvfflatCenters::init(const int64_t tenant_id, const int64_t count)
+int ObTableIvfCenters::init(const int64_t tenant_id, const int64_t count)
 {
   int ret = OB_SUCCESS;
   if (0 >= count) {
@@ -69,7 +69,7 @@ int ObTableIvfflatCenters::init(const int64_t tenant_id, const int64_t count)
   return ret;
 }
 
-int ObTableIvfflatCenters::add(const int64_t center_idx, const ObTypeVector &vector)
+int ObTableIvfCenters::add(const int64_t center_idx, const ObTypeVector &vector)
 {
   int ret = OB_SUCCESS;
   if (center_idx >= count_ || OB_ISNULL(centers_)) {
@@ -82,32 +82,32 @@ int ObTableIvfflatCenters::add(const int64_t center_idx, const ObTypeVector &vec
   return ret;
 }
 
-void ObTableIvfflatCenters::destroy()
+void ObTableIvfCenters::destroy()
 {
   centers_ = nullptr;
   allocator_.reset();
 }
 
-const ObTypeVector &ObTableIvfflatCenters::at(const int64_t idx) const
+const ObTypeVector &ObTableIvfCenters::at(const int64_t idx) const
 {
   OB_ASSERT(idx >= 0 && idx < count_);
   return centers_[idx];
 }
 
 /*
-* ObTenantIvfflatCenterCache Impl
+* ObTenantIvfCenterCache Impl
 */
-int ObTenantIvfflatCenterCache::mtl_init(ObTenantIvfflatCenterCache *&ivfflat_center_cache)
+int ObTenantIvfCenterCache::mtl_init(ObTenantIvfCenterCache *&ivf_center_cache)
 {
-  return ivfflat_center_cache->init(MTL_ID());
+  return ivf_center_cache->init(MTL_ID());
 }
 
-int ObTenantIvfflatCenterCache::init(const int64_t tenant_id)
+int ObTenantIvfCenterCache::init(const int64_t tenant_id)
 {
   int ret = OB_SUCCESS;
   if (IS_INIT) {
     ret = OB_INIT_TWICE;
-    LOG_WARN("ObTenantIvfflatCenterCache has already been initiated", K(ret));
+    LOG_WARN("ObTenantIvfCenterCache has already been initiated", K(ret));
   } else if (OB_INVALID_TENANT_ID == tenant_id) {
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("invalid argument", K(ret), K(tenant_id));
@@ -121,17 +121,17 @@ int ObTenantIvfflatCenterCache::init(const int64_t tenant_id)
   return ret;
 }
 
-void ObTenantIvfflatCenterCache::destroy()
+void ObTenantIvfCenterCache::destroy()
 {
   is_inited_ = false;
   if (map_.created()) {
     for (TableCenterMap::iterator iter = map_.begin();
         iter != map_.end(); ++iter) {
-      ObTableIvfflatCenters *centers = iter->second;
+      ObTableIvfCenters *centers = iter->second;
       if (OB_ISNULL(centers)) {
         LOG_ERROR_RET(OB_ERR_UNEXPECTED, "centers should not be NULL", KPC(this), KPC(centers));
       } else {
-        centers->~ObTableIvfflatCenters();
+        centers->~ObTableIvfCenters();
         allocator_.free(centers);
       }
     }
@@ -139,17 +139,17 @@ void ObTenantIvfflatCenterCache::destroy()
   }
 }
 
-int ObTenantIvfflatCenterCache::put(
+int ObTenantIvfCenterCache::put(
     const int64_t table_id,
     const int64_t partition_idx,
     const ObVectorDistanceType dis_type,
     const common::ObIArray<ObTypeVector *> &array)
 {
   int ret = OB_SUCCESS;
-  ObTableIvfflatCenters *entry = nullptr;
+  ObTableIvfCenters *entry = nullptr;
   if (IS_NOT_INIT) {
     ret = OB_NOT_INIT;
-    LOG_WARN("ObTenantIvfflatCenterCache is not inited", K(ret), K(table_id));
+    LOG_WARN("ObTenantIvfCenterCache is not inited", K(ret), K(table_id));
   } else if (OB_INVALID_ID == table_id || INVALID_DISTANCE_TYPE == dis_type) {
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("invalid argument", K(ret), K(table_id), K(dis_type));
@@ -165,7 +165,7 @@ int ObTenantIvfflatCenterCache::put(
     if (OB_SUCC(ret)) {
       // free old entry
       if (OB_NOT_NULL(entry)) {
-        entry->~ObTableIvfflatCenters();
+        entry->~ObTableIvfCenters();
         allocator_.free(entry);
         entry = nullptr;
       }
@@ -176,7 +176,7 @@ int ObTenantIvfflatCenterCache::put(
         LOG_WARN("failed to set entry", K(ret), K(table_id));
         // free
         if (OB_NOT_NULL(entry)) {
-          entry->~ObTableIvfflatCenters();
+          entry->~ObTableIvfCenters();
           allocator_.free(entry);
           entry = nullptr;
         }
@@ -190,13 +190,13 @@ int ObTenantIvfflatCenterCache::put(
   return ret;
 }
 
-int ObTenantIvfflatCenterCache::get(const int64_t table_id, const int64_t partition_idx, ObTableIvfflatCenters *&centers)
+int ObTenantIvfCenterCache::get(const int64_t table_id, const int64_t partition_idx, ObTableIvfCenters *&centers)
 {
   int ret = OB_SUCCESS;
   centers = nullptr;
   if (IS_NOT_INIT) {
     ret = OB_NOT_INIT;
-    LOG_WARN("ObTenantIvfflatCenterCache is not inited", K(ret), K(table_id));
+    LOG_WARN("ObTenantIvfCenterCache is not inited", K(ret), K(table_id));
   } else {
     common::SpinRLockGuard RLockGuard(rwlock_);
     if (OB_FAIL(map_.get_refactored(ObTableCenterKey(table_id, partition_idx), centers))) {
@@ -208,12 +208,12 @@ int ObTenantIvfflatCenterCache::get(const int64_t table_id, const int64_t partit
   return ret;
 }
 
-int ObTenantIvfflatCenterCache::drop(const int64_t table_id, const int64_t part_count)
+int ObTenantIvfCenterCache::drop(const int64_t table_id, const int64_t part_count)
 {
   int ret = OB_SUCCESS;
   if (IS_NOT_INIT) {
     ret = OB_NOT_INIT;
-    LOG_WARN("ObTenantIvfflatCenterCache is not inited", K(ret), K(table_id));
+    LOG_WARN("ObTenantIvfCenterCache is not inited", K(ret), K(table_id));
   } else if (OB_INVALID_ID == table_id) {
     ret = OB_INVALID_ARGUMENT;
     LOG_WARN("invalid argument", K(ret), K(table_id));
@@ -238,10 +238,10 @@ int ObTenantIvfflatCenterCache::drop(const int64_t table_id, const int64_t part_
   return ret;
 }
 
-int ObTenantIvfflatCenterCache::erase_map_entry(const int64_t table_id, const int64_t part_idx)
+int ObTenantIvfCenterCache::erase_map_entry(const int64_t table_id, const int64_t part_idx)
 {
   int ret = OB_SUCCESS;
-  ObTableIvfflatCenters *centers = nullptr;
+  ObTableIvfCenters *centers = nullptr;
   if (OB_FAIL(map_.get_refactored(ObTableCenterKey(table_id, part_idx), centers))) {
     if (OB_HASH_NOT_EXIST != ret) {
       LOG_WARN("failed to get from map", K(ret), K(table_id), K(part_idx));
@@ -249,7 +249,7 @@ int ObTenantIvfflatCenterCache::erase_map_entry(const int64_t table_id, const in
       ret = OB_SUCCESS;
     }
   } else {
-    centers->~ObTableIvfflatCenters();
+    centers->~ObTableIvfCenters();
     allocator_.free(centers);
     centers = nullptr;
     if (OB_FAIL(map_.erase_refactored(ObTableCenterKey(table_id, part_idx)))) {
@@ -259,7 +259,7 @@ int ObTenantIvfflatCenterCache::erase_map_entry(const int64_t table_id, const in
   return ret;
 }
 
-int ObTenantIvfflatCenterCache::set_partition_name(
+int ObTenantIvfCenterCache::set_partition_name(
     const int64_t tenant_id,
     const int64_t table_id,
     const common::ObTabletID &tablet_id,
@@ -309,14 +309,14 @@ int ObTenantIvfflatCenterCache::set_partition_name(
   }
   return ret;
 }
-int ObTenantIvfflatCenterCache::get_nearest_center(
+int ObTenantIvfCenterCache::get_nearest_center(
     const ObTypeVector &qvector,
     const int64_t table_id,
     const ObTabletID &tablet_id,
     ObObj &cell)
 {
   int ret = OB_SUCCESS;
-  ObTableIvfflatCenters *centers = nullptr;
+  ObTableIvfCenters *centers = nullptr;
   const uint64_t tenant_id = MTL_ID();
   ObArenaAllocator allocator(ObModIds::BLOCK_ALLOC);
   allocator.set_attr(ObMemAttr(tenant_id, "IvfCent"));
@@ -324,7 +324,7 @@ int ObTenantIvfflatCenterCache::get_nearest_center(
   int64_t partition_idx = -1;
   if (IS_NOT_INIT) {
     ret = OB_NOT_INIT;
-    LOG_WARN("ObTenantIvfflatCenterCache is not inited", K(ret), K(table_id), K(tablet_id));
+    LOG_WARN("ObTenantIvfCenterCache is not inited", K(ret), K(table_id), K(tablet_id));
   } else if (OB_FAIL(set_partition_name(tenant_id, table_id, tablet_id, allocator, partition_name, partition_idx))) {
     LOG_WARN("failed to set partition name", K(ret), K(tenant_id), K(table_id), K(tablet_id));
   } else {
@@ -475,7 +475,7 @@ int ObTenantIvfflatCenterCache::get_nearest_center(
                   LOG_WARN("failed to set entry", K(ret), K(table_id), K(partition_idx), K(tablet_id));
                   // free
                   if (OB_NOT_NULL(centers)) {
-                    centers->~ObTableIvfflatCenters();
+                    centers->~ObTableIvfCenters();
                     allocator_.free(centers);
                     centers = nullptr;
                   }
@@ -517,15 +517,15 @@ int ObTenantIvfflatCenterCache::get_nearest_center(
   return ret;
 }
 
-int ObTenantIvfflatCenterCache::create_map_entry(const common::ObIArray<ObTypeVector *> &array, ObTableIvfflatCenters *&entry)
+int ObTenantIvfCenterCache::create_map_entry(const common::ObIArray<ObTypeVector *> &array, ObTableIvfCenters *&entry)
 {
   int ret = OB_SUCCESS;
   entry = nullptr;
   void *buf = nullptr;
-  if (OB_ISNULL(buf = allocator_.alloc(sizeof(ObTableIvfflatCenters)))) {
+  if (OB_ISNULL(buf = allocator_.alloc(sizeof(ObTableIvfCenters)))) {
     ret = OB_ALLOCATE_MEMORY_FAILED;
     LOG_WARN("failed to alloc memory", K(ret));
-  } else if (OB_ISNULL(entry = new (buf) ObTableIvfflatCenters())) {
+  } else if (OB_ISNULL(entry = new (buf) ObTableIvfCenters())) {
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("entry is nullptr", K(ret));
   } else if (OB_FAIL(entry->init(MTL_ID(), array))) {
@@ -533,7 +533,7 @@ int ObTenantIvfflatCenterCache::create_map_entry(const common::ObIArray<ObTypeVe
   }
   if (OB_FAIL(ret)) {
     if (OB_NOT_NULL(entry)) {
-      entry->~ObTableIvfflatCenters();
+      entry->~ObTableIvfCenters();
       entry = nullptr;
     }
     allocator_.free(buf);
@@ -541,15 +541,15 @@ int ObTenantIvfflatCenterCache::create_map_entry(const common::ObIArray<ObTypeVe
   return ret;
 }
 
-int ObTenantIvfflatCenterCache::create_map_entry(const int64_t count, ObTableIvfflatCenters *&entry)
+int ObTenantIvfCenterCache::create_map_entry(const int64_t count, ObTableIvfCenters *&entry)
 {
   int ret = OB_SUCCESS;
   entry = nullptr;
   void *buf = nullptr;
-  if (OB_ISNULL(buf = allocator_.alloc(sizeof(ObTableIvfflatCenters)))) {
+  if (OB_ISNULL(buf = allocator_.alloc(sizeof(ObTableIvfCenters)))) {
     ret = OB_ALLOCATE_MEMORY_FAILED;
     LOG_WARN("failed to alloc memory", K(ret));
-  } else if (OB_ISNULL(entry = new (buf) ObTableIvfflatCenters())) {
+  } else if (OB_ISNULL(entry = new (buf) ObTableIvfCenters())) {
     ret = OB_ERR_UNEXPECTED;
     LOG_WARN("entry is nullptr", K(ret));
   } else if (OB_FAIL(entry->init(MTL_ID(), count))) {
@@ -557,7 +557,7 @@ int ObTenantIvfflatCenterCache::create_map_entry(const int64_t count, ObTableIvf
   }
   if (OB_FAIL(ret)) {
     if (OB_NOT_NULL(entry)) {
-      entry->~ObTableIvfflatCenters();
+      entry->~ObTableIvfCenters();
       entry = nullptr;
     }
     allocator_.free(buf);

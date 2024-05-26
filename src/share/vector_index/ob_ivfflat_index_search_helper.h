@@ -21,7 +21,7 @@
 #include "lib/container/ob_se_array.h"
 #include "lib/mysqlclient/ob_mysql_result.h"
 #include "share/schema/ob_table_schema.h"
-#include "share/vector_index/ob_tenant_ivfflat_center_cache.h"
+#include "share/vector_index/ob_tenant_ivf_center_cache.h"
 #include "share/ob_i_tablet_scan.h"
 #include "sql/engine/expr/ob_expr.h"
 
@@ -159,7 +159,7 @@ private:
   common::ObArenaAllocator allocator_;// keep
   // common::ObFIFOAllocator allocator_;
   ObIvfflatRow *rows_;
-  ObTableIvfflatCenters *centers_;
+  ObTableIvfCenters *centers_;
   HeapCompare compare_;
   common::ObBinaryHeap<HeapCenterItem, HeapCompare, 64> center_heap_;
   common::ObBinaryHeap<HeapRowItem, HeapCompare, 64> row_heap_;
