@@ -85,6 +85,10 @@ struct ObLabel
   {
     str_ = str;
   }
+  ObLabel(std::string str)
+  {
+    str_ = str.c_str();
+  }
   // The caller needs to ensure that it ends with'\0'
   template<std::size_t N>
   ObLabel& operator=(const char (&str)[N])

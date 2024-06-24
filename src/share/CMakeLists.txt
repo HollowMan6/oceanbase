@@ -287,6 +287,8 @@ ob_set_subtarget(ob_share common_mixed
 )
 
 ob_set_subtarget(ob_share vector_index
+vector_index/ob_ivf_index_build_helper.cpp
+vector_index/ob_ivf_index_search_helper.cpp
   vector_index/ob_ivfflat_index_build_helper.cpp
   vector_index/ob_ivfflat_index_search_helper.cpp
         vector_index/ob_ivf_index_sample_cache.cpp

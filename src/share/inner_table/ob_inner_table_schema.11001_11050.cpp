@@ -14523,9 +14523,9 @@ int ObInnerTableSchema::all_virtual_core_all_table_schema(ObTableSchema &table_s
   }
 
   if (OB_SUCC(ret)) {
-    ObObj vector_ivfflat_lists_default;
-    vector_ivfflat_lists_default.set_int(128);
-    ADD_COLUMN_SCHEMA_T("vector_ivfflat_lists", //column_name
+    ObObj vector_ivf_lists_default;
+    vector_ivf_lists_default.set_int(128);
+    ADD_COLUMN_SCHEMA_T("vector_ivf_lists", //column_name
       ++column_id, //column_id
       0, //rowkey_id
       0, //index_id
@@ -14537,8 +14537,8 @@ int ObInnerTableSchema::all_virtual_core_all_table_schema(ObTableSchema &table_s
       -1, //column_scale
       false, //is_nullable
       false, //is_autoincrement
-      vector_ivfflat_lists_default,
-      vector_ivfflat_lists_default); //default_value
+      vector_ivf_lists_default,
+      vector_ivf_lists_default); //default_value
   }
 
   if (OB_SUCC(ret)) {

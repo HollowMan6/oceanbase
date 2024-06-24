@@ -382,7 +382,7 @@ int ObCreateIndexResolver::resolve_index_option_node(
 
     // ivfflat
     if (OB_SUCC(ret)) {
-      crt_idx_stmt->set_vector_ivfflat_lists(vector_ivfflat_lists_);
+      crt_idx_stmt->set_vector_ivf_lists(vector_ivf_lists_);
     }
 
     // block_size

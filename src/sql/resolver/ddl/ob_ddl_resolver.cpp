@@ -110,7 +110,7 @@ ObDDLResolver::ObDDLResolver(ObResolverParams &params)
     tablespace_id_(OB_INVALID_ID),
     table_dop_(DEFAULT_TABLE_DOP),
     hash_subpart_num_(-1),
-    vector_ivfflat_lists_(OB_DEFAULT_VECTOR_IVFFLAT_LISTS),
+    vector_ivf_lists_(OB_DEFAULT_VECTOR_IVF_LISTS),
     is_external_table_(false),
     ttl_definition_(),
     kv_attributes_(),
@@ -2290,14 +2290,14 @@ int ObDDLResolver::resolve_table_option(const ParseNode *option_node, const bool
           ret = OB_ERR_UNEXPECTED;
           SQL_RESV_LOG(WARN, "option_node child is null", K(option_node->children_[0]), K(ret));
         } else {
-          const int64_t vector_ivfflat_lists = option_node->children_[0]->value_;
-          if (vector_ivfflat_lists <= 0) {
+          const int64_t vector_ivf_lists = option_node->children_[0]->value_;
+          if (vector_ivf_lists <= 0) {
             ret = OB_INVALID_ARGUMENT;
-            SQL_RESV_LOG(WARN, "invalid vector_ivfflat_lists", K(vector_ivfflat_lists),
+            SQL_RESV_LOG(WARN, "invalid vector_ivf_lists", K(vector_ivf_lists),
                 K(ret));
-            LOG_USER_ERROR(OB_INVALID_ARGUMENT, "vector_ivfflat_lists");
+            LOG_USER_ERROR(OB_INVALID_ARGUMENT, "vector_ivf_lists");
           } else {
-            vector_ivfflat_lists_ = vector_ivfflat_lists;
+            vector_ivf_lists_ = vector_ivf_lists;
           }
         }
         break;
@@ -4490,7 +4490,7 @@ void ObDDLResolver::reset() {
   tablespace_id_ = OB_INVALID_ID;
   table_dop_ = DEFAULT_TABLE_DOP;
   hash_subpart_num_ = -1;
-  vector_ivfflat_lists_ = OB_DEFAULT_VECTOR_IVFFLAT_LISTS;
+  vector_ivf_lists_ = OB_DEFAULT_VECTOR_IVF_LISTS;
   ttl_definition_.reset();
   kv_attributes_.reset();
   lob_inrow_threshold_ = OB_DEFAULT_LOB_INROW_THRESHOLD;

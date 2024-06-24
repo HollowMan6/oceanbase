@@ -984,7 +984,7 @@ int ObIvfflatAnnScanOp::do_index_scan(const int64_t capcity)
 int ObIvfflatAnnScanOp::do_get_row()
 {
   int ret = OB_SUCCESS;
-  ObIvfflatRow *row = nullptr;
+  ObIvfRow *row = nullptr;
   if (OB_FAIL(ivfflat_helper_->get_row(cur_row_idx_, row))) {
     if (OB_ITER_END != ret) {
       LOG_WARN("failed to get row", K(ret));

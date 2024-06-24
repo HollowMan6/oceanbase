@@ -1207,7 +1207,7 @@ int ObIndexBuilder::set_index_table_options(const obrpc::ObCreateIndexArg &arg,
     // set dop for index table
     schema.set_dop(arg.index_schema_.get_dop());
     // set vector index parameter for index table
-    schema.set_vector_ivfflat_lists(arg.index_schema_.get_vector_ivfflat_lists());
+    schema.set_vector_ivf_lists(arg.index_schema_.get_vector_ivf_lists());
     if (OB_FAIL(schema.set_compress_func_name(data_schema.get_compress_func_name()))) {
       LOG_WARN("set_compress_func_name failed", K(ret),
                "compress method", data_schema.get_compress_func_name());

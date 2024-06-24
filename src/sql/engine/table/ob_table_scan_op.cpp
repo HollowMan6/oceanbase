@@ -1772,7 +1772,7 @@ int ObTableScanOp::inner_open()
     } else if (OB_FAIL(open_inner_conn())) {
       LOG_WARN("fail to open inner connection", K(ret));
     } else if (ivfflat_build_helper_.init(MTL_ID(),
-               vector_index_table_schema->get_vector_ivfflat_lists(),
+               vector_index_table_schema->get_vector_ivf_lists(),
                static_cast<ObVectorDistanceType>(vector_index_table_schema->get_vector_distance_func()))) {
       LOG_WARN("failed to init ivfflat index build helper", K(ret), K(vector_index_table_schema));
     } else {

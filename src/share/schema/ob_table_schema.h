@@ -1479,8 +1479,8 @@ public:
                                    const bool is_oracle_mode);
 
   // vector index related
-  int64_t get_vector_ivfflat_lists() const { return vector_ivfflat_lists_; }
-  void set_vector_ivfflat_lists(const int64_t vector_ivfflat_lists) { vector_ivfflat_lists_ = vector_ivfflat_lists; }
+  int64_t get_vector_ivf_lists() const { return vector_ivf_lists_; }
+  void set_vector_ivf_lists(const int64_t vector_ivf_lists) { vector_ivf_lists_ = vector_ivf_lists; }
   int64_t get_vector_distance_func() const { return static_cast<int64_t>(vector_distance_func_); }
   void set_vector_distance_func(const ObVectorDistanceType distance_func) { vector_distance_func_ = distance_func; }
 
@@ -1904,7 +1904,7 @@ protected:
   uint64_t mlog_tid_;
 
   // vector index
-  int64_t vector_ivfflat_lists_;
+  int64_t vector_ivf_lists_;
   ObVectorDistanceType vector_distance_func_;
 };
 

@@ -1505,8 +1505,8 @@ int ObSchemaRetrieveUtils::fill_table_schema(
     EXTRACT_INT_FIELD_TO_CLASS_MYSQL_WITH_DEFAULT_VALUE(result, column_store, table_schema,
         bool, true, true/*ignore_column_error*/, false);
     // field for vector index
-    EXTRACT_INT_FIELD_TO_CLASS_MYSQL_WITH_DEFAULT_VALUE(result, vector_ivfflat_lists, table_schema,
-        int64_t, true, true/*ignore_column_error*/, OB_DEFAULT_VECTOR_IVFFLAT_LISTS);
+    EXTRACT_INT_FIELD_TO_CLASS_MYSQL_WITH_DEFAULT_VALUE(result, vector_ivf_lists, table_schema,
+        int64_t, true, true/*ignore_column_error*/, OB_DEFAULT_VECTOR_IVF_LISTS);
     EXTRACT_INT_FIELD_TO_CLASS_MYSQL_WITH_DEFAULT_VALUE(result, vector_distance_func, table_schema,
         ObVectorDistanceType, true, true/*ignore_column_error*/, 0);
   }
