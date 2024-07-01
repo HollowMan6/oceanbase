@@ -13002,6 +13002,12 @@ int ObDMLResolver::resolve_global_hint(const ParseNode &hint_node,
       }
       break;
     }
+    case T_VECTOR_IVFPQ_PROBES: {
+      CHECK_HINT_PARAM(hint_node, 1) {
+        global_hint.merge_vector_ivfpq_probes_hint(child0->value_);
+      }
+      break;
+    }
     case T_DBLINK_INFO: {
       CHECK_HINT_PARAM(hint_node, 2) {
         global_hint.merge_dblink_info_hint(child0->value_, child1->value_);

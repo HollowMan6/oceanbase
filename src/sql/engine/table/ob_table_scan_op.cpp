@@ -702,6 +702,7 @@ ObTableScanOp::ObTableScanOp(ObExecContext &exec_ctx, const ObOpSpec &spec, ObOp
     hnsw_index_scan_cell_cnt_(-1),
     hnsw_index_scan_row_cnt_(-1),
     ivfflat_helper_(),
+    ivfpq_helper_(),
     saved_session_(NULL)
 {
 }
@@ -833,26 +834,38 @@ OB_INLINE int ObTableScanOp::create_one_das_task(ObDASTabletLoc *tablet_loc, boo
 
     scan_op->set_ivfflat_helper(&ivfflat_helper_);
     scan_op->set_ivfflat_build_helper(&ivfflat_build_helper_);
+    scan_op->set_ivfpq_helper(&ivfpq_helper_);
+    scan_op->set_ivfpq_build_helper(&ivfpq_build_helper_);
     // TODO(@wangmiao): set ivfflat_build_helper_
-    if (OB_UNLIKELY(ivfflat_helper_.is_inited()) && no_dist_das
-        && OB_FAIL(ivfflat_helper_.set_partition_name(tablet_loc->tablet_id_))) {
+    // TODO: set ivfpq_build_helper_
+    if ((OB_UNLIKELY(ivfflat_helper_.is_inited()) && no_dist_das
+        && OB_FAIL(ivfflat_helper_.set_partition_name(tablet_loc->tablet_id_))) ||
+        (OB_UNLIKELY(ivfpq_helper_.is_inited()) && no_dist_das
+        && OB_FAIL(ivfpq_helper_.set_partition_name(tablet_loc->tablet_id_)))) {
       if (ret == OB_OP_NOT_ALLOW) {
         // ignore error
         ret = OB_SUCCESS;
       } else {
-        LOG_WARN("fail to set partition name for ivfflat helper", K(ret), K(tablet_loc->tablet_id_));
+        LOG_WARN("fail to set partition name for ivf helper", K(ret), K(tablet_loc->tablet_id_));
       }
     }
-    ivfflat_helper_.reuse();
+    if (OB_LIKELY(ivfflat_helper_.is_inited())) {
+      ivfflat_helper_.reuse();
+    } else if (OB_LIKELY(ivfpq_helper_.is_inited())) {
+      ivfpq_helper_.reuse();
+    }
     if (OB_FAIL(ret)) {
-    } else if (OB_UNLIKELY(ivfflat_build_helper_.is_inited() && no_dist_das
+    } else if ((OB_UNLIKELY(ivfflat_build_helper_.is_inited() && no_dist_das
         && OB_FAIL(ivfflat_build_helper_.set_partition_name(
-           tablet_loc->tablet_id_, MY_SPEC.ref_table_id_)))) {
+           tablet_loc->tablet_id_, MY_SPEC.ref_table_id_)))) ||
+           (OB_UNLIKELY(ivfpq_build_helper_.is_inited() && no_dist_das
+        && OB_FAIL(ivfpq_build_helper_.set_partition_name(
+           tablet_loc->tablet_id_, MY_SPEC.ref_table_id_))))) {
       if (ret == OB_OP_NOT_ALLOW) {
         // ignore error
         ret = OB_SUCCESS;
       } else {
-        LOG_WARN("fail to set partition name for ivfflat builder helper",
+        LOG_WARN("fail to set partition name for ivf builder helper",
                 K(ret), K(tablet_loc->tablet_id_), K(scan_op->get_scan_param().index_id_));
       }
     }
@@ -1120,7 +1133,7 @@ int ObTableScanOp::init_table_scan_rtdef()
       if (OB_FAIL(init_das_scan_rtdef(container_ctdef, *tsc_rtdef_.container_rtdef_, MY_CTDEF.container_loc_meta_))) {
         LOG_WARN("init das scan rtdef failed", K(ret), K(container_ctdef));
       }
-      // 不需要将qvector和k存到container_rtdef_，ivfflat_helper_里有
+      // 不需要将qvector和k存到container_rtdef_，ivfflat_helper_或者ivfpq_helper_里有
     }
   }
   return ret;
@@ -1753,7 +1766,7 @@ int ObTableScanOp::inner_open()
   }
 
   if (OB_SUCC(ret) && tsc_rtdef_.is_build_vector_index_) {
-    LOG_INFO("############### ivfflat_sp build_vector_index", KP(this));
+    LOG_INFO("############### ivf_sp build_vector_index", KP(this));
     ObSqlCtx *sql_ctx = NULL;
     const ObTableSchema *vector_index_table_schema = NULL;
     if (OB_ISNULL(sql_ctx = ctx_.get_sql_ctx()) || OB_ISNULL(sql_ctx->schema_guard_)) {
@@ -1766,34 +1779,48 @@ int ObTableScanOp::inner_open()
     } else if (OB_ISNULL(vector_index_table_schema)) {
       ret = OB_ERR_UNEXPECTED;
       LOG_WARN("NULL ptr", K(ret));
-    } else if (USING_IVFFLAT != vector_index_table_schema->get_index_using_type()) {
+    } else if (USING_IVFFLAT != vector_index_table_schema->get_index_using_type() && USING_IVFPQ != vector_index_table_schema->get_index_using_type()) {
       ret = OB_NOT_SUPPORTED;
       LOG_WARN("table scan build vector index is not supported", K(ret));
     } else if (OB_FAIL(open_inner_conn())) {
       LOG_WARN("fail to open inner connection", K(ret));
-    } else if (ivfflat_build_helper_.init(MTL_ID(),
+    } else if (USING_IVFFLAT == vector_index_table_schema->get_index_using_type() &&
+               ivfflat_build_helper_.init(MTL_ID(),
                vector_index_table_schema->get_vector_ivf_lists(),
                static_cast<ObVectorDistanceType>(vector_index_table_schema->get_vector_distance_func()))) {
       LOG_WARN("failed to init ivfflat index build helper", K(ret), K(vector_index_table_schema));
-    } else {
+    } else if (USING_IVFFLAT == vector_index_table_schema->get_index_using_type()) {
       LOG_INFO("############### ivfflat_sp build_vector_index", KP(this), K(ivfflat_build_helper_.is_inited()));
+    } else if (USING_IVFPQ == vector_index_table_schema->get_index_using_type() &&
+               ivfpq_build_helper_.init(MTL_ID(),
+               vector_index_table_schema->get_vector_ivf_lists(),
+               static_cast<ObVectorDistanceType>(vector_index_table_schema->get_vector_distance_func()))) {
+      LOG_WARN("failed to init ivfpq index build helper", K(ret), K(vector_index_table_schema));
+    } else if (USING_IVFPQ == vector_index_table_schema->get_index_using_type()) {
+      LOG_INFO("############### ivfpq_sp build_vector_index", KP(this), K(ivfpq_build_helper_.is_inited()));
     }
   }
 
   if (OB_SUCC(ret) && tsc_rtdef_.is_ann_scan_) {
     if (OB_FAIL(open_inner_conn())) {
       LOG_WARN("fail to open inner connection", K(ret));
-    } else if (MY_CTDEF.scan_ctdef_.table_param_.is_vector_ivfflat_index()) {
+    } else if (MY_CTDEF.scan_ctdef_.table_param_.is_vector_ivfflat_index() ||
+               MY_CTDEF.scan_ctdef_.table_param_.is_vector_ivfpq_index()) {
       ObPhysicalPlanCtx *plan_ctx = ctx_.get_physical_plan_ctx();
       const ObPhysicalPlan *phy_plan = nullptr;
       int64_t probes = 0;
       if (OB_NOT_NULL(plan_ctx)) {
         phy_plan = plan_ctx->get_phy_plan();
         if (OB_NOT_NULL(phy_plan)) {
-          probes = phy_plan->get_phy_plan_hint().vector_ivfflat_probes_;
+          if (MY_CTDEF.scan_ctdef_.table_param_.is_vector_ivfpq_index()) {
+            probes = phy_plan->get_phy_plan_hint().vector_ivfpq_probes_;
+          } else {
+            probes = phy_plan->get_phy_plan_hint().vector_ivfflat_probes_;
+          }
         }
       }
-      if (OB_FAIL(ivfflat_helper_.init(tenant_id_,
+      if (MY_CTDEF.scan_ctdef_.table_param_.is_vector_ivfflat_index() &&
+          OB_FAIL(ivfflat_helper_.init(tenant_id_,
           MY_CTDEF.scan_ctdef_.table_param_.get_table_id(),
           tsc_rtdef_.scan_rtdef_.ann_search_k_,
           probes,
@@ -1802,6 +1829,16 @@ int ObTableScanOp::inner_open()
           inner_conn_,
           ctx_.get_my_session()))) {
         LOG_WARN("failed to init ivfflat helper", K(ret));
+      } else if (MY_CTDEF.scan_ctdef_.table_param_.is_vector_ivfpq_index() &&
+                 OB_FAIL(ivfpq_helper_.init(tenant_id_,
+                 MY_CTDEF.scan_ctdef_.table_param_.get_table_id(),
+                 tsc_rtdef_.scan_rtdef_.ann_search_k_,
+                 probes,
+                 tsc_rtdef_.scan_rtdef_.ann_search_vector_,
+                 MY_CTDEF.scan_ctdef_.table_param_.get_output_projector(),
+                 inner_conn_,
+                 ctx_.get_my_session()))) {
+        LOG_WARN("failed to init ivfpq helper", K(ret));
       }
     } else {
       if (OB_FAIL(open_hnsw_index_op())) {
@@ -1838,6 +1875,8 @@ int ObTableScanOp::inner_close()
   unsafe_out_ring_allocator2_.reset();
   ivfflat_helper_.destroy();
   ivfflat_build_helper_.destroy();
+  ivfpq_helper_.destroy();
+  ivfpq_build_helper_.destroy();
   close_inner_conn();
   if (das_ref_.has_task()) {
     int tmp_ret = fill_storage_feedback_info();
@@ -1921,6 +1960,14 @@ int ObTableScanOp::do_init_before_get_row()
         }
         if (OB_UNLIKELY(ivfflat_build_helper_.is_inited()) &&
             OB_FAIL(ivfflat_build_helper_.set_partition_name(info.tablet_loc_->tablet_id_, MY_SPEC.ref_table_id_))) {
+          LOG_WARN("fail to set partition name", K(ret), K(info.tablet_loc_->tablet_id_));
+        }
+        if (OB_UNLIKELY(ivfpq_helper_.is_inited()) &&
+            OB_FAIL(ivfpq_helper_.set_partition_name(info.tablet_loc_->tablet_id_))) {
+          LOG_WARN("fail to set partition name", K(ret), K(info.tablet_loc_->tablet_id_));
+        }
+        if (OB_UNLIKELY(ivfpq_build_helper_.is_inited()) &&
+            OB_FAIL(ivfpq_build_helper_.set_partition_name(info.tablet_loc_->tablet_id_, MY_SPEC.ref_table_id_))) {
           LOG_WARN("fail to set partition name", K(ret), K(info.tablet_loc_->tablet_id_));
         }
       }
@@ -2100,11 +2147,17 @@ int ObTableScanOp::local_iter_rescan()
   ObGranuleTaskInfo info;
   if (OB_FAIL(get_access_tablet_loc(info))) {
     LOG_WARN("fail to get access partition", K(ret));
-  } if (OB_UNLIKELY(ivfflat_helper_.is_inited()) &&
+  } else if (OB_UNLIKELY(ivfflat_helper_.is_inited()) &&
         OB_FAIL(ivfflat_helper_.set_partition_name(info.tablet_loc_->tablet_id_))) {
     LOG_WARN("fail to set partition name", K(ret), K(info.tablet_loc_->tablet_id_));
   } else if (OB_UNLIKELY(ivfflat_build_helper_.is_inited()
              && OB_FAIL(ivfflat_build_helper_.set_partition_name(info.tablet_loc_->tablet_id_, MY_SPEC.ref_table_id_)))) {
+    LOG_WARN("fail to set partition name", K(ret), K(info.tablet_loc_->tablet_id_));
+  } else if (OB_UNLIKELY(ivfpq_helper_.is_inited()) &&
+        OB_FAIL(ivfpq_helper_.set_partition_name(info.tablet_loc_->tablet_id_))) {
+    LOG_WARN("fail to set partition name", K(ret), K(info.tablet_loc_->tablet_id_));
+  } else if (OB_UNLIKELY(ivfpq_build_helper_.is_inited()
+             && OB_FAIL(ivfpq_build_helper_.set_partition_name(info.tablet_loc_->tablet_id_, MY_SPEC.ref_table_id_)))) {
     LOG_WARN("fail to set partition name", K(ret), K(info.tablet_loc_->tablet_id_));
   } else if (OB_FAIL(local_iter_reuse())) {
     LOG_WARN("failed to reset query range", K(ret));

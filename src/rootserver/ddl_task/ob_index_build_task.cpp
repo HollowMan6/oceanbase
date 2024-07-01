@@ -24,7 +24,6 @@
 #include "share/schema/ob_mlog_info.h"
 #include "lib/mysqlclient/ob_mysql_transaction.h"
 #include "share/vector_index/ob_hnsw_index_builder.h"
-#include "share/vector_index/ob_ivfflat_index_build_helper.h"
 
 using namespace oceanbase::rootserver;
 using namespace oceanbase::common;
@@ -471,6 +470,15 @@ int ObIndexSSTableBuildTask::inner_ivfflat_process(
   return ret;
 }
 
+int ObIndexSSTableBuildTask::inner_ivfpq_process(
+    const ObTableSchema &data_schema,
+    const ObTableSchema &index_schema,
+    const bool is_oracle_mode)
+{
+  // TODO: implement this
+  return inner_ivfflat_process(data_schema, index_schema, is_oracle_mode);
+}
+
 int ObIndexSSTableBuildTask::process()
 {
   int ret = OB_SUCCESS;
@@ -518,6 +526,10 @@ int ObIndexSSTableBuildTask::process()
   } else if (ObIndexUsingType::USING_IVFFLAT == vector_index_using_type_) {
     if (OB_FAIL(inner_ivfflat_process(*data_schema, *index_schema, oracle_mode))) {
       LOG_WARN("failed to process ivfflat index", K(ret));
+    }
+  } else if (ObIndexUsingType::USING_IVFPQ == vector_index_using_type_) {
+    if (OB_FAIL(inner_ivfpq_process(*data_schema, *index_schema, oracle_mode))) {
+      LOG_WARN("failed to process ivfpq index", K(ret));
     }
   } else if (OB_FAIL(ObDDLUtil::generate_build_replica_sql(tenant_id_, data_table_id_,
                                                           dest_table_id_,
@@ -1263,7 +1275,7 @@ int ObIndexBuildTask::send_build_single_replica_request()
     if (create_index_arg_.is_vector_index()) {
       task.set_vector_index_using_type(create_index_arg_.index_using_type_);
       task.set_vd_type(create_index_arg_.index_columns_.at(0).vd_type_);
-      if (USING_IVFFLAT == create_index_arg_.index_using_type_) {
+      if (USING_IVFFLAT == create_index_arg_.index_using_type_ || USING_IVFPQ == create_index_arg_.index_using_type_) {
         if (create_index_arg_.vector_help_schema_.empty()) {
           ret = OB_ERR_UNEXPECTED;
           LOG_WARN("unexpected empty vector help schema", K(ret), K_(create_index_arg));

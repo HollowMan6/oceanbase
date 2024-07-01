@@ -21362,7 +21362,8 @@ int ObDDLService::drop_aux_table_in_drop_table(
       LOG_WARN("table schema should not be null", K(tenant_id), K(tid), KR(ret), K(table_type));
     } else if (OB_FAIL(new_table_schema.assign(*aux_table_schema))) {
       LOG_WARN("assign table schema failed", K(ret));
-    } else if (USING_IVFFLAT ==  new_table_schema.get_index_using_type()) { // get container table info
+    } else if (USING_IVFFLAT ==  new_table_schema.get_index_using_type() ||
+               USING_IVFPQ ==  new_table_schema.get_index_using_type()) { // get container table info
       if (OB_FAIL(new_table_schema.get_simple_index_infos(simple_container_infos))) {
         LOG_WARN("get_simple_index_infos failed", K(ret));
       }

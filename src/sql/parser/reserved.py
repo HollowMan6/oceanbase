@@ -1019,6 +1019,7 @@ class SqlKeywords:
          ISOLATION
          ISSUER
          IVFFLAT
+         IVFPQ
          KEY_BLOCK_SIZE
          L2
          LANGUAGE
@@ -1663,6 +1664,7 @@ class SqlKeywords:
          ISOLATION
          ISSUER
          IVFFLAT
+         IVFPQ
          JSON
          KEY_BLOCK_SIZE
          KEY_VERSION

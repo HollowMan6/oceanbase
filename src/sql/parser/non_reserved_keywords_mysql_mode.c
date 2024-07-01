@@ -392,6 +392,7 @@ static const NonReservedKeyword Mysql_none_reserved_keywords[] =
   {"is", IS},
   {"issuer", ISSUER},
   {"ivfflat", IVFFLAT},
+  {"ivfpq", IVFPQ},
   {"isnull", ISNULL},
   {"isolate", ISOLATE},
   {"isolation", ISOLATION},

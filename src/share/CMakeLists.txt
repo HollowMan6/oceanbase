@@ -291,6 +291,8 @@ vector_index/ob_ivf_index_build_helper.cpp
 vector_index/ob_ivf_index_search_helper.cpp
   vector_index/ob_ivfflat_index_build_helper.cpp
   vector_index/ob_ivfflat_index_search_helper.cpp
+  vector_index/ob_ivfpq_index_build_helper.cpp
+  vector_index/ob_ivfpq_index_search_helper.cpp
         vector_index/ob_ivf_index_sample_cache.cpp
         vector_index/ob_tenant_ivf_center_cache.cpp
   vector_index/ob_hnsw_index_builder.cpp

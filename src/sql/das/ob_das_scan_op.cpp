@@ -10,13 +10,12 @@
  * See the Mulan PubL v2 for more details.
  */
 
+#include "share/vector_index/ob_ivfpq_index_build_helper.h"
 #define USING_LOG_PREFIX SQL_DAS
 #include "sql/das/ob_das_scan_op.h"
 #include "sql/das/ob_das_extra_data.h"
 #include "sql/das/ob_das_spatial_index_lookup_op.h"
 #include "sql/engine/table/ob_table_scan_op.h"
-#include "sql/engine/px/ob_px_util.h"
-#include "sql/engine/ob_des_exec_context.h"
 #include "storage/access/ob_table_scan_iterator.h"
 #include "storage/concurrency_control/ob_data_validation_service.h"
 
@@ -204,7 +203,9 @@ ObDASScanOp::ObDASScanOp(ObIAllocator &op_alloc)
     hnsw_index_scan_cell_cnt_(-1),
     hnsw_index_scan_row_cnt_(-1),
     ivfflat_helper_(nullptr),
-    ivfflat_build_helper_(nullptr)
+    ivfflat_build_helper_(nullptr),
+    ivfpq_helper_(nullptr),
+    ivfpq_build_helper_(nullptr)
 {
 }
 
@@ -391,6 +392,19 @@ int ObDASScanOp::open_op()
       ret = OB_ERR_UNEXPECTED;
       LOG_WARN("unexpect null container ctdef", K(ret));
     }
+  } else if (OB_NOT_NULL(ivfpq_build_helper_) && ivfpq_build_helper_->is_inited()) {
+    if (OB_FAIL(create_build_vector_index_dummy_result())) {
+      LOG_WARN("failed to create ivfpq ann result", K(ret));
+    }
+  } else if (OB_NOT_NULL(ivfpq_helper_) && ivfpq_helper_->is_inited()) {
+    if (get_container_ctdef() != nullptr) {
+      if (OB_FAIL(create_ivfpq_ann_scan_op())) {
+        LOG_WARN("failed to create ivfpq ann scan op", K(ret));
+      }
+    } else {
+      ret = OB_ERR_UNEXPECTED;
+      LOG_WARN("unexpect null container ctdef", K(ret));
+    }
   } else if (OB_FAIL(tsc_service.table_scan(scan_param_, result_))) {
     if (OB_SNAPSHOT_DISCARDED == ret && scan_param_.fb_snapshot_.is_valid()) {
       ret = OB_INVALID_QUERY_TIMESTAMP;
@@ -474,12 +488,18 @@ int ObDASScanOp::create_build_vector_index_dummy_result()
 {
   int ret = OB_SUCCESS;
   void *buf = nullptr;
+  ObIvfIndexBuildHelper *build_helper = nullptr;
+  if (ivfflat_build_helper_ != nullptr) {
+    build_helper = ivfflat_build_helper_;
+  } else {
+    build_helper = ivfpq_build_helper_;
+  }
   ObBuildVectorIndexDummyResult *result = nullptr;
   if (OB_ISNULL(buf = scan_param_.allocator_->alloc(sizeof(ObBuildVectorIndexDummyResult)))) {
     ret = OB_ALLOCATE_MEMORY_FAILED;
     LOG_WARN("failed to alloc result", K(ret));
   } else if (FALSE_IT(result = new (buf) ObBuildVectorIndexDummyResult(
-                      ivfflat_build_helper_,
+                      build_helper,
                       scan_param_.index_id_,
                       scan_param_.table_param_->get_build_vector_index_table_id(),
                       scan_param_.table_param_->get_build_vector_index_container_table_id()))) {
@@ -507,7 +527,7 @@ int ObBuildVectorIndexDummyResult::get_next_row()
   common::ObCommonSqlProxy *user_sql_proxy = nullptr;
   user_sql_proxy = GCTX.sql_proxy_;
   const int64_t DDL_INNER_SQL_EXECUTE_TIMEOUT = ObDDLUtil::calc_inner_sql_execute_timeout();
-  if (OB_FAIL(ivfflat_build_helper_->construct_select_sql_string_simple(
+  if (OB_FAIL(ivf_build_helper_->construct_select_sql_string_simple(
       select_sql_string,
       index_table_id_,
       base_table_id_))) {
@@ -522,16 +542,17 @@ int ObBuildVectorIndexDummyResult::get_next_row()
     SMART_VAR(ObISQLClient::ReadResult, result) {
       ObIvfFixSampleCache cache(result, trans);
       omt::ObTenantConfigGuard tenant_config(TENANT_CONF(MTL_ID()));
-      if (OB_FAIL(cache.init(MTL_ID(), ivfflat_build_helper_->get_lists(), select_sql_string,
+      // TODO: init sample cache also ivfpq
+      if (OB_FAIL(cache.init(MTL_ID(), ivf_build_helper_->get_lists(), select_sql_string,
                              "IvfflatCache", "IvfflatSamps", tenant_config->vector_ivfflat_sample_count))) {
         LOG_WARN("failed to init sample cache", K(ret));
-      } else if (OB_FAIL(ivfflat_build_helper_->set_sample_cache(&cache))) {
+      } else if (OB_FAIL(ivf_build_helper_->set_sample_cache(&cache))) {
         LOG_WARN("failed to set sample cache", K(ret));
       } else {
-        while ((OB_SUCC(ret) || OB_NEED_RETRY == ret) && !ivfflat_build_helper_->is_finish()) {
-          LOG_TRACE("build ivfflat index", K(ret), K(ivfflat_build_helper_));
-          if (OB_FAIL(ivfflat_build_helper_->build())) {
-            LOG_WARN("failed to build ivfflat index", K(ret));
+        while ((OB_SUCC(ret) || OB_NEED_RETRY == ret) && !ivf_build_helper_->is_finish()) {
+          LOG_TRACE("build ivf index", K(ret), K(ivf_build_helper_));
+          if (OB_FAIL(ivf_build_helper_->build())) {
+            LOG_WARN("failed to build ivf index", K(ret));
           } else {
             result.reset();
           }
@@ -539,16 +560,16 @@ int ObBuildVectorIndexDummyResult::get_next_row()
       }
     }
 
-    if (OB_SUCC(ret) && !ivfflat_build_helper_->skip_insert()) {
+    if (OB_SUCC(ret) && !ivf_build_helper_->skip_insert()) {
       ObSqlString insert_index_sql;
       ObSqlString insert_container_sql;
       int64_t affected_rows = 0;
-      if (OB_FAIL(ivfflat_build_helper_->init_center_dummy_pkeys_array())) {
+      if (OB_FAIL(ivf_build_helper_->init_center_dummy_pkeys_array())) {
         LOG_WARN("fail to init center dummy pkeys", K(ret));
-      } else if (OB_FAIL(ivfflat_build_helper_->construct_batch_insert_index_sql_simple(
+      } else if (OB_FAIL(ivf_build_helper_->construct_batch_insert_index_sql_simple(
           insert_index_sql,
           index_table_id_))) {
-        LOG_WARN("failed to construct ivfflat index insert sql string", K(ret), K_(index_table_id), K(insert_index_sql));
+        LOG_WARN("failed to construct ivf index insert sql string", K(ret), K_(index_table_id), K(insert_index_sql));
       } else {
         ObTimeoutCtx timeout_ctx;
         if (OB_FAIL(ObShareUtil::set_default_timeout_ctx(timeout_ctx, DDL_INNER_SQL_EXECUTE_TIMEOUT))) {
@@ -566,25 +587,25 @@ int ObBuildVectorIndexDummyResult::get_next_row()
               int64_t idx = 0;
               ObSqlString insert_sql;
               while (OB_SUCC(ret) && OB_SUCC(insert_sql.assign(insert_index_sql))
-                  && OB_SUCC(ivfflat_build_helper_->construct_batch_insert_index_sql(
+                  && OB_SUCC(ivf_build_helper_->construct_batch_insert_index_sql(
                     *res, insert_sql, row_count, idx))) {
                 if (0 == row_count) {
                   break;
                 } else if (OB_FAIL(trans.write(MTL_ID(), insert_sql.ptr(), affected_rows))) {
-                  LOG_WARN("failed to insert into ivfflat index", K(ret), K(insert_sql));
+                  LOG_WARN("failed to insert into ivf index", K(ret), K(insert_sql));
                 }
               }
             }
           }
         }
       }
-      if (FAILEDx(ivfflat_build_helper_->construct_batch_insert_container_sql_simple(
+      if (FAILEDx(ivf_build_helper_->construct_batch_insert_container_sql_simple(
           insert_container_sql,
           index_table_id_,
           container_table_id_))) {
-        LOG_WARN("failed to construct ivfflat index insert sql string", K(ret), K_(container_table_id), K(insert_container_sql));
+        LOG_WARN("failed to construct ivf index insert sql string", K(ret), K_(container_table_id), K(insert_container_sql));
       } else if (OB_FAIL(trans.write(MTL_ID(), insert_container_sql.ptr(), affected_rows))) {
-        LOG_WARN("failed to insert into ivfflat index", K(ret), K(insert_container_sql));
+        LOG_WARN("failed to insert into ivf index", K(ret), K(insert_container_sql));
       }
     }
   }
@@ -597,7 +618,7 @@ int ObBuildVectorIndexDummyResult::get_next_row()
   }
   if (OB_SUCC(ret)) {
     int tmp_ret = OB_SUCCESS;
-    if (OB_TMP_FAIL(ivfflat_build_helper_->set_center_cache(index_table_id_))) {
+    if (OB_TMP_FAIL(ivf_build_helper_->set_center_cache(index_table_id_))) {
       LOG_WARN("failed to set center cache", K(tmp_ret), K(index_table_id_));
     }
     ret = OB_ITER_END;
@@ -637,14 +658,41 @@ int ObDASScanOp::create_ivfflat_ann_scan_op()
   return ret;
 }
 
-int ObIvfflatAnnScanOp::init(const ObDASScanCtDef *index_ctdef,
+int ObDASScanOp::create_ivfpq_ann_scan_op()
+{
+  int ret = OB_SUCCESS;
+  void *buf = op_alloc_.alloc(sizeof(ObIvfpqAnnScanOp));
+  if (OB_ISNULL(buf)) {
+    ret = OB_ALLOCATE_MEMORY_FAILED;
+    LOG_WARN("lookup op buf allocated failed", K(ret));
+  } else {
+    ObIvfpqAnnScanOp *op = new(buf) ObIvfpqAnnScanOp();
+    if (OB_FAIL(op->init(scan_ctdef_,
+                        scan_rtdef_,
+                        get_container_ctdef(),
+                        get_container_rtdef(),
+                        trans_desc_,
+                        snapshot_,
+                        &scan_param_,
+                        ivfpq_helper_))) {
+      LOG_WARN("failed to init ivfpq ann scan op", K(ret));
+    } else {
+      op->set_tablet_id(container_tablet_ids_.at(0));
+      op->set_ls_id(ls_id_);
+      result_ = op;
+    }
+  }
+  return ret;
+}
+
+int ObIvfAnnScanOp::init(const ObDASScanCtDef *index_ctdef,
                              ObDASScanRtDef *index_rtdef,
                              const ObDASScanCtDef *container_ctdef,
                              ObDASScanRtDef *container_rtdef,
                              transaction::ObTxDesc *tx_desc,
                              transaction::ObTxReadSnapshot *snapshot,
                              storage::ObTableScanParam *scan_param,
-                             share::ObIvfflatIndexSearchHelper *ivfflat_helper)
+                             share::ObIvfIndexSearchHelper *ivf_helper)
 {
   int ret = OB_SUCCESS;
   index_ctdef_ = index_ctdef;
@@ -655,7 +703,7 @@ int ObIvfflatAnnScanOp::init(const ObDASScanCtDef *index_ctdef,
   snapshot_ = snapshot;
   state_ = CONTAINER_SCAN;
   index_scan_param_ = scan_param;
-  ivfflat_helper_ = ivfflat_helper;
+  ivf_helper_ = ivf_helper;
 
   uint64_t tenant_id = MTL_ID();
   arena_allocator_.set_attr(ObMemAttr(tenant_id, "AnnScan"));
@@ -665,12 +713,12 @@ int ObIvfflatAnnScanOp::init(const ObDASScanCtDef *index_ctdef,
   return ret;
 }
 
-OB_INLINE ObITabletScan &ObIvfflatAnnScanOp::get_tsc_service()
+OB_INLINE ObITabletScan &ObIvfAnnScanOp::get_tsc_service()
 {
   return *(MTL(ObAccessService *));
 }
 
-int ObIvfflatAnnScanOp::reuse()
+int ObIvfAnnScanOp::reuse()
 {
   int ret = OB_SUCCESS;
   ObITabletScan &tsc_service = get_tsc_service();
@@ -681,14 +729,14 @@ int ObIvfflatAnnScanOp::reuse()
   } else {
     container_scan_param_.key_ranges_.reuse();
     container_scan_param_.ss_key_ranges_.reuse();
-    ivfflat_helper_->reuse();
+    ivf_helper_->reuse();
     state_ = CONTAINER_SCAN;
     cur_row_idx_ = 0;
   }
   return ret;
 }
 
-int ObIvfflatAnnScanOp::revert_iter()
+int ObIvfAnnScanOp::revert_iter()
 {
   int ret = OB_SUCCESS;
   ObITabletScan &tsc_service = get_tsc_service();
@@ -706,7 +754,7 @@ int ObIvfflatAnnScanOp::revert_iter()
   return ret;
 }
 
-int ObIvfflatAnnScanOp::prepare_container_key_range()
+int ObIvfAnnScanOp::prepare_container_key_range()
 {
   int ret = OB_SUCCESS;
   ObNewRange key_range;
@@ -718,13 +766,13 @@ int ObIvfflatAnnScanOp::prepare_container_key_range()
   return ret;
 }
 
-int ObIvfflatAnnScanOp::get_next_row(ObNewRow *&row)
+int ObIvfAnnScanOp::get_next_row(ObNewRow *&row)
 {
   UNUSED(row);
   return OB_NOT_IMPLEMENT;
 }
 
-int ObIvfflatAnnScanOp::get_next_row()
+int ObIvfAnnScanOp::get_next_row()
 {
   int ret = OB_SUCCESS;
   bool got_next_row = false;
@@ -748,7 +796,7 @@ int ObIvfflatAnnScanOp::get_next_row()
       }
       case OUTPUT_ROWS: {
         if (OB_FAIL(do_get_row())) {
-          LOG_WARN("failed to get row from ivfflat helper", K(ret));
+          LOG_WARN("failed to get row from ivf helper", K(ret));
         } else {
           got_next_row = true;
         }
@@ -766,7 +814,7 @@ int ObIvfflatAnnScanOp::get_next_row()
   return ret;
 }
 
-int ObIvfflatAnnScanOp::get_next_rows(int64_t &count, int64_t capacity)
+int ObIvfAnnScanOp::get_next_rows(int64_t &count, int64_t capacity)
 {
   int ret = OB_SUCCESS;
   bool got_next_row = false;
@@ -791,7 +839,7 @@ int ObIvfflatAnnScanOp::get_next_rows(int64_t &count, int64_t capacity)
       case OUTPUT_ROWS: {
         if (OB_FAIL(do_get_rows(count, capacity))) {
           if (OB_ITER_END != ret) {
-            LOG_WARN("failed to get row from ivfflat helper", K(ret));
+            LOG_WARN("failed to get row from ivf helper", K(ret));
           }
         } else {
           got_next_row = true;
@@ -810,13 +858,13 @@ int ObIvfflatAnnScanOp::get_next_rows(int64_t &count, int64_t capacity)
   return ret;
 }
 
-int ObIvfflatAnnScanOp::do_container_scan(const int64_t capcity)
+int ObIvfAnnScanOp::do_container_scan(const int64_t capcity)
 {
   int ret = OB_SUCCESS;
   int tmp_ret = OB_SUCCESS;
-  if (OB_TMP_FAIL(ivfflat_helper_->reset_centers())) {
+  if (OB_TMP_FAIL(ivf_helper_->reset_centers())) {
     LOG_WARN("failed to reset center cache", K(tmp_ret));
-  } else if (OB_TMP_FAIL(ivfflat_helper_->get_centers_by_cache())) {
+  } else if (OB_TMP_FAIL(ivf_helper_->get_centers_by_cache())) {
     LOG_WARN("failed to get centers by cache", K(tmp_ret));
   }
   if (OB_SUCCESS != tmp_ret) {
@@ -856,7 +904,7 @@ int ObIvfflatAnnScanOp::do_container_scan(const int64_t capcity)
             if (OB_ITER_END != ret) {
               LOG_WARN("failed to get next row from container table", K(ret));
             }
-          } else if (OB_FAIL(ivfflat_helper_->generate_centers_by_storage(container_scan_param_.output_exprs_, container_rtdef_->eval_ctx_))) {
+          } else if (OB_FAIL(ivf_helper_->generate_centers_by_storage(container_scan_param_.output_exprs_, container_rtdef_->eval_ctx_))) {
             LOG_WARN("failed to generate centers by storage", K(ret));
           } else {
             ++row_cnt;
@@ -879,7 +927,7 @@ int ObIvfflatAnnScanOp::do_container_scan(const int64_t capcity)
             batch_info_guard.set_batch_size(row_count);
             for (int64_t i = 0; OB_SUCC(ret) && i < row_count; i++) {
               batch_info_guard.set_batch_idx(i);
-              if (OB_FAIL(ivfflat_helper_->generate_centers_by_storage(container_scan_param_.output_exprs_, container_rtdef_->eval_ctx_))) {
+              if (OB_FAIL(ivf_helper_->generate_centers_by_storage(container_scan_param_.output_exprs_, container_rtdef_->eval_ctx_))) {
                 LOG_WARN("failed to generate centers by storage", K(ret));
               }
             }
@@ -897,14 +945,14 @@ int ObIvfflatAnnScanOp::do_container_scan(const int64_t capcity)
   return ret;
 }
 
-int ObIvfflatAnnScanOp::do_index_scan(const int64_t capcity)
+int ObIvfAnnScanOp::do_index_scan(const int64_t capcity)
 {
   int ret = OB_SUCCESS;
   ObITabletScan &tsc_service = get_tsc_service();
   ObArenaAllocator allocator(ObMemAttr(MTL_ID(), "AnnScan"));
   index_scan_param_->key_ranges_.reuse();
   index_scan_param_->ss_key_ranges_.reuse();
-  if (OB_FAIL(ivfflat_helper_->prepare_rowkey_ranges(
+  if (OB_FAIL(ivf_helper_->prepare_rowkey_ranges(
               index_scan_param_->key_ranges_,
               container_scan_param_.table_param_->get_rowkey_cnt(),
               index_ctdef_->ref_table_id_,
@@ -936,7 +984,7 @@ int ObIvfflatAnnScanOp::do_index_scan(const int64_t capcity)
             if (OB_ITER_END != ret) {
               LOG_WARN("failed to get next row from index table", K(ret));
             }
-          } else if (OB_FAIL(ivfflat_helper_->get_rows_by_storage(
+          } else if (OB_FAIL(ivf_helper_->get_rows_by_storage(
               container_scan_param_.output_exprs_, index_scan_param_->output_exprs_, index_rtdef_->eval_ctx_))) {
             LOG_WARN("failed to get rows by storage", K(ret));
           } else {
@@ -960,7 +1008,7 @@ int ObIvfflatAnnScanOp::do_index_scan(const int64_t capcity)
             batch_info_guard.set_batch_size(row_count);
             for (int64_t i = 0; OB_SUCC(ret) && i < row_count; i++) {
               batch_info_guard.set_batch_idx(i);
-              if (OB_FAIL(ivfflat_helper_->get_rows_by_storage(
+              if (OB_FAIL(ivf_helper_->get_rows_by_storage(
                   container_scan_param_.output_exprs_, index_scan_param_->output_exprs_, index_rtdef_->eval_ctx_))) {
                 LOG_WARN("failed to get rows by storage", K(ret));
               }
@@ -972,7 +1020,7 @@ int ObIvfflatAnnScanOp::do_index_scan(const int64_t capcity)
       if (OB_ITER_END == ret) {
         ret = OB_SUCCESS;
       }
-      if (FAILEDx(ivfflat_helper_->get_rows_by_storage())) {
+      if (FAILEDx(ivf_helper_->get_rows_by_storage())) {
         LOG_WARN("failed to get rows by storage", K(ret));
       }
       LOG_TRACE("total scan row count", K(ret), K(row_cnt));
@@ -981,11 +1029,11 @@ int ObIvfflatAnnScanOp::do_index_scan(const int64_t capcity)
   return ret;
 }
 
-int ObIvfflatAnnScanOp::do_get_row()
+int ObIvfAnnScanOp::do_get_row()
 {
   int ret = OB_SUCCESS;
   ObIvfRow *row = nullptr;
-  if (OB_FAIL(ivfflat_helper_->get_row(cur_row_idx_, row))) {
+  if (OB_FAIL(ivf_helper_->get_row(cur_row_idx_, row))) {
     if (OB_ITER_END != ret) {
       LOG_WARN("failed to get row", K(ret));
     }
@@ -1005,7 +1053,7 @@ int ObIvfflatAnnScanOp::do_get_row()
   return ret;
 }
 
-int ObIvfflatAnnScanOp::do_get_rows(int64_t &count, const int64_t capacity)
+int ObIvfAnnScanOp::do_get_rows(int64_t &count, const int64_t capacity)
 {
   int ret = OB_SUCCESS;
   count = 0;
@@ -1026,7 +1074,7 @@ int ObIvfflatAnnScanOp::do_get_rows(int64_t &count, const int64_t capacity)
   return ret;
 }
 
-int ObIvfflatAnnScanOp::reuse_iter(ObNewRowIterator *iter)
+int ObIvfAnnScanOp::reuse_iter(ObNewRowIterator *iter)
 {
   int ret = OB_SUCCESS;
   ObITabletScan &tsc_service = get_tsc_service();
@@ -1036,7 +1084,7 @@ int ObIvfflatAnnScanOp::reuse_iter(ObNewRowIterator *iter)
   return ret;
 }
 
-int ObIvfflatAnnScanOp::init_scan_param()
+int ObIvfAnnScanOp::init_scan_param()
 {
   int ret = OB_SUCCESS;
   uint64_t tenant_id = MTL_ID();
@@ -1408,6 +1456,10 @@ int ObDASScanOp::rescan()
     ObIvfflatAnnScanOp *ivfflat_op = static_cast<ObIvfflatAnnScanOp *>(row_iter);
     ivfflat_op->set_tablet_id(container_tablet_ids_.at(0));
     ivfflat_op->set_ls_id(ls_id_);
+  } else if (OB_UNLIKELY(ObNewRowIterator::ObIvfpqAnnOp == row_iter->get_type())) {
+    ObIvfpqAnnScanOp *ivfpq_op = static_cast<ObIvfpqAnnScanOp *>(row_iter);
+    ivfpq_op->set_tablet_id(container_tablet_ids_.at(0));
+    ivfpq_op->set_ls_id(ls_id_);
   } else if (OB_FAIL(tsc_service.table_rescan(scan_param_, row_iter))) {
     LOG_WARN("rescan the table iterator failed", K(ret));
   }

@@ -38,6 +38,7 @@
 #include "share/schema/ob_error_info.h"
 #include "share/schema/ob_constraint.h"
 #include "share/schema/ob_schema_service.h"
+#include "share/schema/ob_schema_struct.h"
 #include "share/schema/ob_udf.h"
 #include "share/schema/ob_dependency_info.h"
 #include "share/schema/ob_trigger_info.h"
@@ -2610,7 +2611,7 @@ public:
   inline bool is_spatial_index() const { return share::schema::INDEX_TYPE_SPATIAL_LOCAL == index_type_
                                                 || share::schema::INDEX_TYPE_SPATIAL_GLOBAL == index_type_
                                                 || share::schema::INDEX_TYPE_SPATIAL_GLOBAL_LOCAL_STORAGE == index_type_; }
-  inline bool is_vector_index() const { return USING_HNSW == index_using_type_ || USING_IVFFLAT == index_using_type_; }
+  inline bool is_vector_index() const { return USING_HNSW == index_using_type_ || USING_IVFFLAT == index_using_type_ || USING_IVFPQ == index_using_type_; }
 
 //todo @qilu:only for each_cg now, when support customized cg ,refine this
   typedef common::ObSEArray<uint64_t, common::DEFAULT_CUSTOMIZED_CG_NUM> ObCGColumnList;

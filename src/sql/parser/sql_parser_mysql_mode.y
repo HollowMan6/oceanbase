@@ -294,7 +294,7 @@ END_P SET_VAR DELIMITER
 
         ID IDC IDENTIFIED IGNORE_SERVER_IDS ILOG IMMEDIATE IMPORT INCLUDING INCR INDEXES INDEX_TABLE_ID INFO INITIAL_SIZE
         INNER_PRODUCT INNODB INSERT_METHOD INSTALL INSTANCE INVOKER IO IOPS_WEIGHT IO_THREAD IPC ISOLATE ISOLATION ISSUER IVFFLAT
-        INCREMENT IS_TENANT_SYS_POOL INVISIBLE MERGE ISNULL INTERSECT INCREMENTAL INNER_PARSE ILOGCACHE INPUT INDEXED
+        IVFPQ INCREMENT IS_TENANT_SYS_POOL INVISIBLE MERGE ISNULL INTERSECT INCREMENTAL INNER_PARSE ILOGCACHE INPUT INDEXED
 
         JOB JSON JSON_ARRAYAGG JSON_OBJECTAGG JSON_VALUE JSON_TABLE
 
@@ -8625,6 +8625,10 @@ USING BTREE
 {
   malloc_terminal_node($$, result->malloc_pool_, T_USING_IVFFLAT);
 }
+| USING IVFPQ
+{
+  malloc_terminal_node($$, result->malloc_pool_, T_USING_IVFPQ);
+}
 ;
 
 opt_temporary:
@@ -8845,6 +8849,7 @@ opt_vector_index_parameter:
 LISTS COMP_EQ INTNUM
 {
   malloc_non_terminal_node($$, result->malloc_pool_, T_VECTOR_IVFFLAT_LISTS, 1, $3);
+  malloc_non_terminal_node($$, result->malloc_pool_, T_VECTOR_IVFPQ_LISTS, 1, $3);
 }
 ;
 
@@ -10117,6 +10122,7 @@ READ_CONSISTENCY '(' consistency_level ')'
 | PROBES '(' INTNUM ')'
 {
   malloc_non_terminal_node($$, result->malloc_pool_, T_VECTOR_IVFFLAT_PROBES, 1, $3);
+  malloc_non_terminal_node($$, result->malloc_pool_, T_VECTOR_IVFPQ_PROBES, 1, $3);
 }
 | MONITOR
 {
@@ -19989,6 +19995,7 @@ ACCOUNT
 |       ISOLATE
 |       ISSUER
 |       IVFFLAT
+|       IVFPQ
 |       JOB
 |       JSON
 |       JSON_VALUE

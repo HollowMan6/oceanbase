@@ -154,6 +154,7 @@ struct ObGlobalHint {
   static const common::ObConsistencyLevel UNSET_CONSISTENCY = common::INVALID_CONSISTENCY;
   static const int64_t UNSET_QUERY_TIMEOUT = -1;
   static const int64_t UNSET_VECTOR_IVFFLAT_PROBES = -1;
+  static const int64_t UNSET_VECTOR_IVFPQ_PROBES = -1;
   static const int64_t UNSET_MAX_CONCURRENT = -1;
   static const uint64_t UNSET_OPT_FEATURES_VERSION = 0;
   static const int64_t DEFAULT_PARALLEL = 1;
@@ -170,6 +171,8 @@ struct ObGlobalHint {
   void reset_query_timeout_hint() { query_timeout_ = -1; }
   void merge_vector_ivfflat_probes_hint(int64_t vector_ivfflat_probes);
   void reset_vector_ivfflat_probes_hint() { vector_ivfflat_probes_ = -1; }
+  void merge_vector_ivfpq_probes_hint(int64_t vector_ivfpq_probes);
+  void reset_vector_ivfpq_probes_hint() { vector_ivfpq_probes_ = -1; }
   void merge_dblink_info_hint(int64_t tx_id, int64_t tm_sessid);
   void reset_dblink_info_hint();
   void merge_max_concurrent_hint(int64_t max_concurrent);
@@ -241,6 +244,7 @@ struct ObGlobalHint {
                K_(sharding_minimum_row_count),
                K_(query_timeout),
                K_(vector_ivfflat_probes),
+               K_(vector_ivfpq_probes),
                K_(tx_id),
                K_(tm_sessid),
                K_(read_consistency),
@@ -272,6 +276,7 @@ struct ObGlobalHint {
   int64_t sharding_minimum_row_count_;
   int64_t query_timeout_;
   int64_t vector_ivfflat_probes_;
+  int64_t vector_ivfpq_probes_;
   int64_t tx_id_;
   int64_t tm_sessid_;
   common::ObConsistencyLevel read_consistency_;
@@ -308,6 +313,7 @@ public:
       : read_consistency_(common::INVALID_CONSISTENCY),
         query_timeout_(-1),
         vector_ivfflat_probes_(-1),
+        vector_ivfpq_probes_(-1),
         plan_cache_policy_(OB_USE_PLAN_CACHE_INVALID),
         force_trace_log_(false),
         log_level_(),
@@ -319,6 +325,7 @@ public:
       : read_consistency_(global_hint.read_consistency_),
         query_timeout_(global_hint.query_timeout_),
         vector_ivfflat_probes_(global_hint.vector_ivfflat_probes_),
+        vector_ivfpq_probes_(global_hint.vector_ivfpq_probes_),
         plan_cache_policy_(global_hint.plan_cache_policy_),
         force_trace_log_(global_hint.force_trace_log_),
         log_level_(global_hint.log_level_),
@@ -330,12 +337,13 @@ public:
 
   void reset();
 
-  TO_STRING_KV(K_(read_consistency), K_(query_timeout), K_(vector_ivfflat_probes), K_(plan_cache_policy),
+  TO_STRING_KV(K_(read_consistency), K_(query_timeout), K_(vector_ivfflat_probes), K_(vector_ivfpq_probes), K_(plan_cache_policy),
                K_(force_trace_log), K_(log_level), K_(parallel), K_(monitor));
 
   common::ObConsistencyLevel read_consistency_;
   int64_t query_timeout_;
   int64_t vector_ivfflat_probes_;
+  int64_t vector_ivfpq_probes_;
   ObPlanCachePolicy plan_cache_policy_;
   bool force_trace_log_;
   common::ObString log_level_;

@@ -259,10 +259,12 @@ enum ObMVOnQueryComputationFlag
   IS_MV_ON_QUERY_COMPUTATION = 1,
 };
 
-enum ObVecIvfflatContainerTableFlag
+enum ObVecIvfContainerTableFlag
 {
   IS_NOT_IVFFLAT_CONTAINER_TABLE = 0,
   IS_IVFFLAT_CONTAINER_TABLE = 1,
+  IS_NOT_IVFPQ_CONTAINER_TABLE = 2,
+  IS_IVFPQ_CONTAINER_TABLE = 3,
 };
 
 struct ObTableMode {
@@ -296,6 +298,8 @@ private:
   static const int32_t TM_MV_ON_QUERY_COMPUTATION_BITS = 1;
   static const int32_t TM_VEC_IVFFLAT_CONTAINER_TABLE_OFFSET = 29;
   static const int32_t TM_VEC_IVFFLAT_CONTAINER_TABLE_BITS = 1;
+    static const int32_t TM_VEC_IVFPQ_CONTAINER_TABLE_OFFSET = 29;
+  static const int32_t TM_VEC_IVFPQ_CONTAINER_TABLE_BITS = 1;
   static const int32_t TM_RESERVED = 2;
 
   static const uint32_t MODE_FLAG_MASK = (1U << TM_MODE_FLAG_BITS) - 1;
@@ -312,6 +316,7 @@ private:
   static const uint32_t MV_ENABLE_QUERY_REWRITE_MASK = (1U << TM_MV_ENABLE_QUERY_REWRITE_BITS) - 1;
   static const uint32_t MV_ON_QUERY_COMPUTATION_MASK = (1U << TM_MV_ON_QUERY_COMPUTATION_BITS) - 1;
   static const uint32_t VEC_IVFFLAT_CONTAINER_TABLE_MASK = (1U << TM_VEC_IVFFLAT_CONTAINER_TABLE_BITS) - 1;
+  static const uint32_t VEC_IVFPQ_CONTAINER_TABLE_MASK = (1U << TM_VEC_IVFPQ_CONTAINER_TABLE_BITS) - 1;
 public:
   ObTableMode() { reset(); }
   virtual ~ObTableMode() { reset(); }
@@ -376,9 +381,13 @@ public:
   {
       return (ObMVOnQueryComputationFlag)((table_mode >> TM_MV_ON_QUERY_COMPUTATION_OFFSET) & MV_ON_QUERY_COMPUTATION_MASK);
   }
-  static ObVecIvfflatContainerTableFlag get_vec_ivfflat_container_table_flag(int32_t table_mode)
+  static ObVecIvfContainerTableFlag get_vec_ivfflat_container_table_flag(int32_t table_mode)
   {
-    return (ObVecIvfflatContainerTableFlag)((table_mode >> TM_VEC_IVFFLAT_CONTAINER_TABLE_OFFSET) & VEC_IVFFLAT_CONTAINER_TABLE_MASK);
+    return (ObVecIvfContainerTableFlag)((table_mode >> TM_VEC_IVFFLAT_CONTAINER_TABLE_OFFSET) & VEC_IVFFLAT_CONTAINER_TABLE_MASK);
+  }
+  static ObVecIvfContainerTableFlag get_vec_ivfpq_container_table_flag(int32_t table_mode)
+  {
+    return (ObVecIvfContainerTableFlag)((table_mode >> TM_VEC_IVFPQ_CONTAINER_TABLE_OFFSET) & VEC_IVFPQ_CONTAINER_TABLE_MASK);
   }
   inline bool is_user_hidden_table() const
   { return TABLE_STATE_IS_HIDDEN_MASK & state_flag_; }
@@ -392,7 +401,8 @@ public:
                "view_column_filled_flag", view_column_filled_flag_,
                "mv_container_table_flag", mv_container_table_flag_,
                "mv_available_flag", mv_available_flag_,
-               "vec_ivfflat_container_table_flag", vec_ivfflat_container_table_flag_);
+               "vec_ivfflat_container_table_flag", vec_ivfflat_container_table_flag_,
+               "vec_ivfpq_container_table_flag", vec_ivfpq_container_table_flag_);
   union {
     int32_t mode_;
     struct {
@@ -407,6 +417,7 @@ public:
       uint32_t mv_container_table_flag_ : TM_MV_CONTAINER_TABLE_BITS;
       uint32_t mv_available_flag_ : TM_MV_AVAILABLE_BITS;
       uint32_t vec_ivfflat_container_table_flag_ : TM_VEC_IVFFLAT_CONTAINER_TABLE_BITS;
+      uint32_t vec_ivfpq_container_table_flag_ : TM_VEC_IVFPQ_CONTAINER_TABLE_BITS;
       uint32_t reserved_ :TM_RESERVED;
     };
   };
@@ -646,7 +657,7 @@ public:
   inline void set_data_table_id(const uint64_t data_table_id) { data_table_id_ = data_table_id; }
   virtual inline uint64_t get_data_table_id() const {
     uint64_t data_table_id = OB_INVALID_ID;
-    if (vec_ivfflat_container_table()) {
+    if (vec_ivfflat_container_table() || vec_ivfpq_container_table()) {
       data_table_id = ObSimpleTableSchemaV2::extract_data_table_id_from_index_name(table_name_);
     }
     if (OB_INVALID_ID == data_table_id) {
@@ -730,9 +741,13 @@ public:
   inline void set_mv_available(const ObMVAvailableFlag flag)
   { table_mode_.mv_available_flag_ = flag; }
   inline bool vec_ivfflat_container_table() const
-  { return IS_IVFFLAT_CONTAINER_TABLE == (enum ObVecIvfflatContainerTableFlag)table_mode_.vec_ivfflat_container_table_flag_; }
-  inline void set_vec_ivfflat_container_table(const ObVecIvfflatContainerTableFlag flag)
+  { return IS_IVFFLAT_CONTAINER_TABLE == (enum ObVecIvfContainerTableFlag)table_mode_.vec_ivfflat_container_table_flag_; }
+  inline void set_vec_ivfflat_container_table(const ObVecIvfContainerTableFlag flag)
   { table_mode_.vec_ivfflat_container_table_flag_ = flag; }
+  inline bool vec_ivfpq_container_table() const
+  { return IS_IVFPQ_CONTAINER_TABLE == (enum ObVecIvfContainerTableFlag)table_mode_.vec_ivfpq_container_table_flag_; }
+  inline void set_vec_ivfpq_container_table(const ObVecIvfContainerTableFlag flag)
+  { table_mode_.vec_ivfpq_container_table_flag_ = flag; }
 
   inline void set_session_id(const uint64_t id)  { session_id_ = id; }
   inline uint64_t get_session_id() const { return session_id_; }
@@ -987,11 +1002,14 @@ public:
   inline ObIndexUsingType get_index_using_type() const { return index_using_type_; }
   inline bool is_ordered() const { return USING_BTREE == index_using_type_ ||
                                           USING_HNSW == index_using_type_ ||
-                                          USING_IVFFLAT == index_using_type_; }
+                                          USING_IVFFLAT == index_using_type_ ||
+                                          USING_IVFPQ == index_using_type_; }
   inline bool is_using_vector_index() const { return USING_HNSW == index_using_type_ ||
-                                                     USING_IVFFLAT == index_using_type_; }
+                                                     USING_IVFFLAT == index_using_type_ ||
+                                                     USING_IVFPQ == index_using_type_; }
   inline bool is_using_hnsw_index() const { return USING_HNSW == index_using_type_; }
   inline bool is_using_ivfflat_index() const { return USING_IVFFLAT == index_using_type_; }
+  inline bool is_using_ivfpq_index() const { return USING_IVFPQ == index_using_type_; }
   DECLARE_VIRTUAL_TO_STRING;
 protected:
   uint64_t tenant_id_;
@@ -1920,7 +1938,7 @@ private:
 // the storage of the index and the main table are put together
 inline bool ObSimpleTableSchemaV2::is_index_local_storage() const
 {
-  return USER_INDEX == table_type_ && !vec_ivfflat_container_table() // TODO(@jingshui): 特殊处理container table，跳过建索引时对主表的检查
+  return USER_INDEX == table_type_ && !vec_ivfflat_container_table() && !vec_ivfpq_container_table() // TODO(@jingshui): 特殊处理container table，跳过建索引时对主表的检查
         // && schema::is_index_local_storage(index_type_); TODO(wangzhennan.wzn): use is_index_local_storage later
          && (INDEX_TYPE_NORMAL_LOCAL == index_type_
              || INDEX_TYPE_UNIQUE_LOCAL == index_type_

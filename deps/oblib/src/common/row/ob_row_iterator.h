@@ -31,6 +31,8 @@ public:
     ObGroupLookupOp = 3,
     ObIvfflatBuildIndex = 4,
     ObIvfflatAnnOp = 5,
+    ObIvfpqBuildIndex = 4,
+    ObIvfpqAnnOp = 5,
   };
 public:
   ObNewRowIterator() : type_(Other) {}

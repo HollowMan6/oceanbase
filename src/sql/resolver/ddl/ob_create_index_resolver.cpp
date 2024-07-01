@@ -380,7 +380,7 @@ int ObCreateIndexResolver::resolve_index_option_node(
       crt_idx_stmt->set_index_dop(table_dop_);
     }
 
-    // ivfflat
+    // ivf
     if (OB_SUCC(ret)) {
       crt_idx_stmt->set_vector_ivf_lists(vector_ivf_lists_);
     }
@@ -461,6 +461,8 @@ int ObCreateIndexResolver::resolve_index_method_node(
       crt_idx_stmt->set_index_using_type(USING_HASH);
     } else if (T_USING_IVFFLAT == index_method_node->type_) {
       crt_idx_stmt->set_index_using_type(USING_IVFFLAT);
+    } else if (T_USING_IVFPQ == index_method_node->type_) {
+      crt_idx_stmt->set_index_using_type(USING_IVFPQ);
     } else {
       crt_idx_stmt->set_index_using_type(USING_BTREE);
     }
@@ -681,7 +683,8 @@ int ObCreateIndexResolver::resolve(const ParseNode &parse_tree)
   }
 
   // create ivfflat container table schema
-  if (OB_SUCC(ret) && ObIndexUsingType::USING_IVFFLAT == crt_idx_stmt->get_index_using_type()) {
+  if (OB_SUCC(ret) && (ObIndexUsingType::USING_IVFFLAT == crt_idx_stmt->get_index_using_type() ||
+                       ObIndexUsingType::USING_IVFPQ == crt_idx_stmt->get_index_using_type())) {
     SMART_VAR(ObTableSchema, container_table_schema) {
       ObTableSchema &index_schema = crt_idx_stmt->get_create_index_arg().index_schema_;
       if (OB_SUCC(ret)) {

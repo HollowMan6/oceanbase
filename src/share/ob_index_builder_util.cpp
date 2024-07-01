@@ -496,6 +496,16 @@ int ObIndexBuilderUtil::set_index_table_columns_for_vector_hnsw(
   return ret;
 }
 
+int ObIndexBuilderUtil::set_index_table_columns_for_vector_ivfpq(
+    const obrpc::ObCreateIndexArg &arg,
+    const share::schema::ObTableSchema &data_schema,
+    const ObColumnSchemaV2 &data_column,
+    share::schema::ObTableSchema &index_schema,
+    common::ObRowDesc &row_desc)
+{
+  return set_index_table_columns_for_vector_ivfflat(arg, data_schema, data_column, index_schema, row_desc);
+}
+
 int ObIndexBuilderUtil::set_index_table_columns_for_vector_ivfflat(
     const obrpc::ObCreateIndexArg &arg,
     const share::schema::ObTableSchema &data_schema,
@@ -626,6 +636,10 @@ int ObIndexBuilderUtil::set_index_table_columns(
             if (ObIndexUsingType::USING_IVFFLAT == arg.index_using_type_) {
               if (OB_FAIL(set_index_table_columns_for_vector_ivfflat(arg, data_schema, *data_column, index_schema, row_desc))) {
                 LOG_WARN("failed to set index table columns for ivfflat", K(ret), K(arg));
+              }
+            } else if (ObIndexUsingType::USING_IVFPQ == arg.index_using_type_) {
+              if (OB_FAIL(set_index_table_columns_for_vector_ivfpq(arg, data_schema, *data_column, index_schema, row_desc))) {
+                LOG_WARN("failed to set index table columns for ivfpq", K(ret), K(arg));
               }
             } else if (ObIndexUsingType::USING_HNSW == arg.index_using_type_) {
               if (OB_FAIL(set_index_table_columns_for_vector_hnsw(arg, data_schema, index_schema, row_desc))) {

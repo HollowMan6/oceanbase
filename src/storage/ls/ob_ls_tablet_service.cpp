@@ -3899,8 +3899,8 @@ int ObLSTabletService::check_is_gencol_check_failed(const ObRelativeTable &data_
         } else if (is_shadow_column(column->get_column_id())) {
           //shadow column does not exists in basic table, do nothing
         } else if (OB_ISNULL(column = data_table_schema->get_column_schema(column->get_column_id()))) {
-          if (index_table_schema->is_using_ivfflat_index() && 0 == (*iter)->get_column_name_str().compare("center_idx")) {
-            // do nothing // ivfflat index extra column
+          if ((index_table_schema->is_using_ivfflat_index() || index_table_schema->is_using_ivfpq_index()) && 0 == (*iter)->get_column_name_str().compare("center_idx")) {
+            // do nothing // ivf index extra column
           } else {
             ret = OB_ERR_UNEXPECTED;
             LOG_WARN("unexpected null", K(ret), KP(column));

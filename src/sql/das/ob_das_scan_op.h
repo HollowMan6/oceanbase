@@ -18,6 +18,8 @@
 #include "sql/engine/table/ob_index_lookup_op_impl.h"
 #include "share/vector_index/ob_ivfflat_index_search_helper.h"
 #include "share/vector_index/ob_ivfflat_index_build_helper.h"
+#include "share/vector_index/ob_ivfpq_index_search_helper.h"
+#include "share/vector_index/ob_ivfpq_index_build_helper.h"
 namespace oceanbase
 {
 namespace sql
@@ -293,6 +295,11 @@ public:
   int create_build_vector_index_dummy_result();
 
   int create_ivfflat_ann_scan_op();
+
+  void set_ivfpq_helper(share::ObIvfpqIndexSearchHelper *ivfpq_helper) { ivfpq_helper_ = ivfpq_helper; }
+  void set_ivfpq_build_helper(share::ObIvfpqIndexBuildHelper *ivfpq_build_helper) { ivfpq_build_helper_ = ivfpq_build_helper; }
+  int create_ivfpq_ann_scan_op();
+
   INHERIT_TO_STRING_KV("parent", ObIDASTaskOp,
                        KPC_(scan_ctdef),
                        KPC_(scan_rtdef),
@@ -338,36 +345,38 @@ protected:
   // IVFFLAT INDEX SEARCH HELPER
   share::ObIvfflatIndexSearchHelper *ivfflat_helper_;
   share::ObIvfflatIndexBuildHelper *ivfflat_build_helper_;
+  // IVFPQ INDEX SEARCH HELPER
+  share::ObIvfpqIndexSearchHelper *ivfpq_helper_;
+  share::ObIvfpqIndexBuildHelper *ivfpq_build_helper_;
 };
 
 class ObBuildVectorIndexDummyResult : public common::ObNewRowIterator
 {
 public:
-  ObBuildVectorIndexDummyResult(share::ObIvfflatIndexBuildHelper *ivfflat_build_helper,
+  ObBuildVectorIndexDummyResult(share::ObIvfIndexBuildHelper *ivf_build_helper,
                                 uint64_t base_table_id,
                                 uint64_t index_table_id,
                                 uint64_t container_table_id)
-    : ObNewRowIterator(ObNewRowIterator::IterType::ObIvfflatBuildIndex),
-      ivfflat_build_helper_(ivfflat_build_helper),
+    : ivf_build_helper_(ivf_build_helper),
       base_table_id_(base_table_id),
       index_table_id_(index_table_id),
       container_table_id_(container_table_id)
   {}
   virtual ~ObBuildVectorIndexDummyResult() {}
   virtual int get_next_row(ObNewRow *&row) override;
-  virtual void reset() { ivfflat_build_helper_->reuse(); }
+  virtual void reset() { ivf_build_helper_->reuse(); }
   virtual int get_next_row() override;
   virtual int get_next_rows(int64_t &count, int64_t capacity) override;
-  void reuse() { ivfflat_build_helper_->reuse(); }
-  share::ObIvfflatIndexBuildHelper *get_ivfflat_build_helper() { return ivfflat_build_helper_; }
+  void reuse() { ivf_build_helper_->reuse(); }
+  share::ObIvfIndexBuildHelper *get_ivf_build_helper() { return ivf_build_helper_; }
 private:
-  share::ObIvfflatIndexBuildHelper *ivfflat_build_helper_;
+  share::ObIvfIndexBuildHelper *ivf_build_helper_;
   uint64_t base_table_id_;
   uint64_t index_table_id_;
   uint64_t container_table_id_;
 };
 
-class ObIvfflatAnnScanOp : public common::ObNewRowIterator
+class ObIvfAnnScanOp : public common::ObNewRowIterator
 {
 protected:
   enum AnnState : int32_t
@@ -378,8 +387,8 @@ protected:
     FINISHED
   };
 public:
-  ObIvfflatAnnScanOp()
-    : ObNewRowIterator(ObNewRowIterator::IterType::ObIvfflatAnnOp),
+  ObIvfAnnScanOp(const IterType type)
+    : ObNewRowIterator(type),
       state_(CONTAINER_SCAN),
       cur_row_idx_(0),
       index_iter_(nullptr),
@@ -395,7 +404,7 @@ public:
       container_scan_param_(),
       index_scan_param_(nullptr),
       arena_allocator_(),
-      ivfflat_helper_(nullptr)
+      ivf_helper_(nullptr)
   {}
   int init(const ObDASScanCtDef *index_ctdef,
            ObDASScanRtDef *index_rtdef,
@@ -404,8 +413,8 @@ public:
            transaction::ObTxDesc *tx_desc,
            transaction::ObTxReadSnapshot *snapshot,
            storage::ObTableScanParam *scan_param,
-           share::ObIvfflatIndexSearchHelper *ivfflat_helper);
-  virtual ~ObIvfflatAnnScanOp() {}
+           share::ObIvfIndexSearchHelper *ivf_helper);
+  virtual ~ObIvfAnnScanOp() {}
   virtual int get_next_row(ObNewRow *&row) override;
   virtual int get_next_row() override;
   virtual int get_next_rows(int64_t &count, int64_t capacity) override;
@@ -446,7 +455,21 @@ protected:
 
   storage::ObTableScanParam *index_scan_param_;
   common::ObArenaAllocator arena_allocator_;
-  share::ObIvfflatIndexSearchHelper *ivfflat_helper_;
+  share::ObIvfIndexSearchHelper *ivf_helper_;
+};
+
+class ObIvfflatAnnScanOp : public ObIvfAnnScanOp {
+public:
+  ObIvfflatAnnScanOp()
+    : ObIvfAnnScanOp(ObNewRowIterator::IterType::ObIvfflatBuildIndex)
+  {}
+};
+
+class ObIvfpqAnnScanOp : public ObIvfAnnScanOp {
+public:
+  ObIvfpqAnnScanOp()
+    : ObIvfAnnScanOp(ObNewRowIterator::IterType::ObIvfpqBuildIndex)
+  {}
 };
 
 class ObDASScanResult : public ObIDASTaskResult, public common::ObNewRowIterator

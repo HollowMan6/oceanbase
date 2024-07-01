@@ -238,9 +238,9 @@ alter system set vector_ivfflat_elkan = 'True';
 SET SESSION _FORCE_PARALLEL_DDL_DOP = 2;
 ```
 
-- vector_ivfflat_iters_count: 设置kmeans最大迭代次数，默认200。
-- vector_ivfflat_elkan：设置kmeans算法为elkan kmeans。建议在测试欧式距离索引时开启，可以加快索引构建速度。默认值为'True'。
-- vector_ivfflat_sample_count：构建索引时样本采样数量。默认值为10000。建索引时样本数取值为`MAX（list * 50, 10000)`。
+- vector_ivfflat_iters_count: 设置ivfflat的kmeans最大迭代次数，默认200。
+- vector_ivfflat_elkan：设置ivfflat的kmeans算法为elkan kmeans。建议在测试欧式距离索引时开启，可以加快索引构建速度。默认值为'True'。
+- vector_ivfflat_sample_count：设置ivfflat的构建索引时样本采样数量。默认值为10000。建索引时样本数取值为`MAX（list * 50, 10000)`。
 ##### 示例
 ```sql
 obclient> create table t (c1 int, c2 int, c3 int, c4 vector(3), primary key (c1,c2));

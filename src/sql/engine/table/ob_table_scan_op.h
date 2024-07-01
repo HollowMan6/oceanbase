@@ -32,6 +32,8 @@
 #include "share/vector_index/ob_hnsw_index_reader.h"
 #include "share/vector_index/ob_ivfflat_index_search_helper.h"
 #include "share/vector_index/ob_ivfflat_index_build_helper.h"
+#include "share/vector_index/ob_ivfpq_index_search_helper.h"
+#include "share/vector_index/ob_ivfpq_index_build_helper.h"
 namespace oceanbase
 {
 namespace common
@@ -197,7 +199,7 @@ public:
   //lookup_loc_meta_ used to calc the main table tablet location
   //when query access the global index and lookup the main table
   ObDASTableLocMeta *lookup_loc_meta_;
-  // 用于查ivfflat索引表前查询container表 // 和ivfflat索引表强绑定
+  // 用于查ivf索引表前查询container表 // 和ivf索引表强绑定
   ObDASScanCtDef *container_ctdef_;
   ObDASTableLocMeta *container_loc_meta_;
   //used for dynamic partition pruning
@@ -701,6 +703,10 @@ protected:
   // IVFFLAT INDEX SEARCH HELPER
   ObIvfflatIndexSearchHelper ivfflat_helper_;
   ObIvfflatIndexBuildHelper  ivfflat_build_helper_;
+
+  // IVFPQ INDEX SEARCH HELPER
+  ObIvfpqIndexSearchHelper ivfpq_helper_;
+  ObIvfpqIndexBuildHelper  ivfpq_build_helper_;
 private:
   ObSQLSessionInfo::StmtSavedValue *saved_session_;
   char saved_session_buf_[sizeof(ObSQLSessionInfo::StmtSavedValue)] __attribute__((aligned (16)));;

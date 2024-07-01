@@ -78,6 +78,10 @@ private:
       const ObTableSchema &data_schema,
       const ObTableSchema &index_schema,
       const bool is_oracle_mode);
+  int inner_ivfpq_process(
+      const ObTableSchema &data_schema,
+      const ObTableSchema &index_schema,
+      const bool is_oracle_mode);
 
 private:
   int64_t task_id_;
@@ -97,7 +101,7 @@ private:
   ObRootService *root_service_;
   common::ObAddr inner_sql_exec_addr_;
   bool is_vector_index_;
-  int64_t container_table_id_; // for ivfflat indexs
+  int64_t container_table_id_; // for ivf indexs
   share::schema::ObIndexUsingType vector_index_using_type_;
   common::ObVectorDistanceType vd_type_;
 

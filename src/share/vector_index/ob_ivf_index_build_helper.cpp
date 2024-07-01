@@ -49,11 +49,6 @@ int ObIvfIndexBuildHelper::init(const int64_t tenant_id,
   } else if (OB_FAIL(center_vectors_[1].reserve(lists))) {
     LOG_WARN("failed to reserve new_center_vectors", K(ret), K(lists));
   } else {
-    {
-      omt::ObTenantConfigGuard tenant_config(TENANT_CONF(tenant_id));
-      max_iterate_times_ = tenant_config->vector_ivfflat_iters_count;
-      elkan_kmeans_ = tenant_config->vector_ivfflat_elkan;
-    }
     distance_type_ = distance_type;
     tenant_id_ = tenant_id;
     lists_ = lists;

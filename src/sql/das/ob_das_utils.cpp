@@ -214,7 +214,7 @@ int ObDASUtils::project_storage_row(const ObDASDMLBaseCtDef &dml_ctdef,
     const ObObjMeta &col_type = dml_ctdef.column_types_.at(i);
     const ObAccuracy &col_accuracy = dml_ctdef.column_accuracys_.at(i);
     if (projector_idx < 0) {
-      if (dml_ctdef.table_param_.get_data_table().is_vector_ivfflat_index()
+      if ((dml_ctdef.table_param_.get_data_table().is_vector_ivfflat_index() || dml_ctdef.table_param_.get_data_table().is_vector_ivfpq_index())
           && dml_ctdef.column_ids_[i] == dml_ctdef.table_param_.get_data_table().get_extra_rowkey_id()) {
         if (OB_ISNULL(tablet_id)) {
           ret = OB_ERR_UNEXPECTED;

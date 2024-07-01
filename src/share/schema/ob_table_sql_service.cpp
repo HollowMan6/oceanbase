@@ -829,7 +829,7 @@ int ObTableSqlService::drop_table(const ObTableSchema &table_schema,
     if (OB_FAIL(log_operation_wrapper(opt, sql_client))) {
       LOG_WARN("log operation failed", K(opt), K(ret));
     } else {
-      if ((table_schema.is_index_table() && !table_schema.vec_ivfflat_container_table())
+      if ((table_schema.is_index_table() && !table_schema.vec_ivfflat_container_table() && !table_schema.vec_ivfpq_container_table())
           || table_schema.is_aux_vp_table()
           || table_schema.is_aux_lob_table()
           || table_schema.is_mlog_table()) {

@@ -2665,7 +2665,7 @@ int ObJoinOrder::fill_index_info_entry(const uint64_t table_id,
         entry->set_is_index_vector(is_index_vector);
         entry->set_is_unique_index(is_unique_index);
         entry->get_ordering_info().set_scan_direction(direction);
-        if (is_index_vector && index_schema->is_using_ivfflat_index()) {
+        if (is_index_vector && (index_schema->is_using_ivfflat_index() || index_schema->is_using_ivfpq_index())) {
           const ObTableSchema *container_schema = NULL;
           ObSEArray<ObAuxTableMetaInfo, 16> simple_index_infos;
           if (OB_FAIL(index_schema->get_simple_index_infos(simple_index_infos))) {
@@ -2678,9 +2678,10 @@ int ObJoinOrder::fill_index_info_entry(const uint64_t table_id,
             } else if (OB_ISNULL(container_schema)) {
               ret = OB_ERR_UNEXPECTED;
               LOG_WARN("index schema should not be null", KR(ret), K(container_id));
-            } else if (!container_schema->vec_ivfflat_container_table()) {
+            } else if (!container_schema->vec_ivfflat_container_table() &&
+                       !container_schema->vec_ivfpq_container_table()) {
               ret = OB_ERR_UNEXPECTED;
-              LOG_WARN("invalid container table for ivfflat index table", K(ret), K(*container_schema));
+              LOG_WARN("invalid container table for ivf index table", K(ret), K(*container_schema));
             } else {
               entry->set_container_table_id(container_id);
               break;

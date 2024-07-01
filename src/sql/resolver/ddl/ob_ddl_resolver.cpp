@@ -1853,6 +1853,11 @@ int ObDDLResolver::resolve_table_option(const ParseNode *option_node, const bool
         index_using_type_ = USING_IVFFLAT;
         break;
       }
+      case T_USING_IVFPQ: {
+        has_index_using_type_ = true;
+        index_using_type_ = USING_IVFPQ;
+        break;
+      }
       case T_ENGINE: {
         if (OB_ISNULL(option_node->children_[0])) {
           ret = OB_ERR_UNEXPECTED;
@@ -2285,7 +2290,8 @@ int ObDDLResolver::resolve_table_option(const ParseNode *option_node, const bool
         ret = resolve_lob_inrow_threshold(option_node, is_index_option);
         break;
       }
-      case T_VECTOR_IVFFLAT_LISTS: {
+      case T_VECTOR_IVFFLAT_LISTS:
+      case T_VECTOR_IVFPQ_LISTS: {
         if (OB_ISNULL(option_node->children_[0])) {
           ret = OB_ERR_UNEXPECTED;
           SQL_RESV_LOG(WARN, "option_node child is null", K(option_node->children_[0]), K(ret));

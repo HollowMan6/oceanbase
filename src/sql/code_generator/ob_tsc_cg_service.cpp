@@ -255,7 +255,7 @@ int ObTscCgService::generate_table_param(const ObLogTableScan &op, ObDASScanCtDe
       FALSE_IT(scan_ctdef.table_param_.set_index_using_type(table_schema->get_index_using_type()))) {
   } else if (op.get_is_vector_index() && is_ann_search &&
       FALSE_IT(scan_ctdef.table_param_.set_build_vector_index_container_table_id(op.get_container_table_id()))) {
-  } else if (op.get_is_vector_index() && is_ann_search && table_schema->vec_ivfflat_container_table() &&
+  } else if (op.get_is_vector_index() && is_ann_search && (table_schema->vec_ivfflat_container_table() || table_schema->vec_ivfpq_container_table()) &&
       FALSE_IT(scan_ctdef.table_param_.set_rowkey_cnt(table_schema->get_rowkey_column_num()))) {
   } else if (OB_FAIL(extract_das_output_column_ids(op, index_id, *table_schema, tsc_out_cols, result_out_cols))) {
     LOG_WARN("extract tsc output column ids failed", K(ret));
@@ -300,7 +300,7 @@ int ObTscCgService::generate_table_param(const ObLogTableScan &op, ObDASScanCtDe
         } else if (OB_ISNULL(secondory_table_schema)) {
           ret = OB_ERR_UNEXPECTED;
           LOG_WARN("NULL ptr", K(ret), K(secondory_table_schema));
-        } else if (secondory_table_schema->vec_ivfflat_container_table()) {
+        } else if (secondory_table_schema->vec_ivfflat_container_table() || secondory_table_schema->vec_ivfpq_container_table()) {
           container_table_schema = secondory_table_schema;
         }
       }
@@ -314,6 +314,7 @@ int ObTscCgService::generate_table_param(const ObLogTableScan &op, ObDASScanCtDe
     }
   }
   // LOG_INFO("############# ivfflat_px", K(index_id), K(table_schema->get_index_using_type()), K(is_ann_search), K(op.get_is_vector_index()));
+  // LOG_INFO("############# ivfpq_px", K(index_id), K(table_schema->get_index_using_type()), K(is_ann_search), K(op.get_is_vector_index()));
   return ret;
 }
 
@@ -657,7 +658,7 @@ int ObTscCgService::extract_das_access_exprs(const ObLogTableScan &op,
       LOG_WARN("assign access exprs failed", K(ret));
     }
   }
-  // 不管回表与否，ivfflat索引都要访问center_idx和向量列
+  // 不管回表与否，ivf索引都要访问center_idx和向量列
   if (OB_SUCC(ret)
       && op.get_is_vector_index()
       && (scan_table_id == op.get_container_table_id()
@@ -1003,7 +1004,7 @@ int ObTscCgService::extract_das_output_column_ids(const ObLogTableScan &op,
 {
   int ret = OB_SUCCESS;
   ObArray<ObRawExpr*> das_output_cols;
-  bool is_ivfflat_index = OB_INVALID_ID != op.get_container_table_id() && op.get_real_index_table_id() == table_id && op.get_real_ref_table_id() != table_id;
+  bool is_ivf_index = OB_INVALID_ID != op.get_container_table_id() && op.get_real_index_table_id() == table_id && op.get_real_ref_table_id() != table_id;
   if (op.get_container_table_id() == table_id) {
     if (OB_FAIL(append_array_no_dup(das_output_cols, op.get_extra_access_exprs()))) {
       LOG_WARN("append output exprs failed", K(ret));
@@ -1069,7 +1070,7 @@ int ObTscCgService::extract_das_output_column_ids(const ObLogTableScan &op,
   if (OB_SUCC(ret)) {
     if (OB_FAIL(result_cids.assign(output_cids))) {
       LOG_WARN("failed to assign cids", K(ret));
-    } else if (is_ivfflat_index) { // add center_idx and vector column
+    } else if (is_ivf_index) { // add center_idx and vector column
       das_output_cols.reset();
       if (OB_FAIL(append_array_no_dup(das_output_cols, op.get_extra_access_exprs()))) {
         LOG_WARN("append output exprs failed", K(ret));

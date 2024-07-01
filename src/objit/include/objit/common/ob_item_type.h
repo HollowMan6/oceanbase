@@ -223,6 +223,8 @@ typedef enum ObItemType
   // vector parameter
   T_VECTOR_IVFFLAT_LISTS = 191,
   T_VECTOR_IVFFLAT_PROBES = 192,
+  T_VECTOR_IVFPQ_LISTS = 193,
+  T_VECTOR_IVFPQ_PROBES = 194,
   ///< @note add new operator before this line
 
   // system functions
@@ -1132,6 +1134,7 @@ typedef enum ObItemType
   T_USING_BTREE,
   T_USING_HNSW,
   T_USING_IVFFLAT,
+  T_USING_IVFPQ,
   T_WITH_CLAUSE_AS,
   T_WITH_CLAUSE_LIST,
   T_CYCLE_NODE,

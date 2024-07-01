@@ -568,7 +568,7 @@ protected: // memeber variables
   common::ObSEArray<ObRawExpr*, 4, common::ModulePageAllocator, true> rowkey_exprs_;
   common::ObSEArray<ObRawExpr*, 4, common::ModulePageAllocator, true> part_exprs_;
   common::ObSEArray<ObRawExpr*, 4, common::ModulePageAllocator, true> spatial_exprs_;
-  // for ivfflat index table
+  // for ivf index table
   common::ObSEArray<ObRawExpr*, 4, common::ModulePageAllocator, true> extra_access_exprs_;
   //for external table
   common::ObSEArray<ObRawExpr*, 4, common::ModulePageAllocator, true> ext_file_column_exprs_;

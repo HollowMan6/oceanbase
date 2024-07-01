@@ -3749,6 +3749,19 @@ static struct VarsInit{
     ObSysVars[265].alias_ = "OB_SV_VECTOR_IVFFLAT_PROBES" ;
     }();
 
+    [&] (){
+      ObSysVars[266].default_value_ = "0" ;
+      ObSysVars[266].info_ = "The center counts which should be checked in ivfpq index. 0 means calculate by self" ;
+      ObSysVars[266].name_ = "vector_ivfpq_probes" ;
+      ObSysVars[266].data_type_ = ObUInt64Type ;
+      ObSysVars[266].flags_ = ObSysVarFlag::GLOBAL_SCOPE | ObSysVarFlag::SESSION_SCOPE | ObSysVarFlag::MYSQL_ONLY ;
+      ObSysVars[266].id_ = SYS_VAR_VECTOR_IVFPQ_PROBES ;
+      cur_max_var_id = MAX(cur_max_var_id, static_cast<int64_t>(SYS_VAR_VECTOR_IVFPQ_PROBES)) ;
+      ObSysVarsIdToArrayIdx[SYS_VAR_VECTOR_IVFPQ_PROBES] = 266 ;
+      ObSysVars[266].base_value_ = "0" ;
+    ObSysVars[266].alias_ = "OB_SV_VECTOR_IVFPQ_PROBES" ;
+    }();
+
     if (cur_max_var_id >= ObSysVarFactory::OB_MAX_SYS_VAR_ID) { 
       HasInvalidSysVar = true;
     }

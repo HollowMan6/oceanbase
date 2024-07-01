@@ -6432,7 +6432,7 @@ int ObPartitionUtils::check_param_valid_(
             } else if (OB_ISNULL(table_schema)) {
               ret = OB_TABLE_NOT_EXIST;
               LOG_WARN("data table schema not exist", KR(ret), K(tenant_id), K(related_tid));
-            } else if (!table_schema->vec_ivfflat_container_table()) {
+            } else if (!table_schema->vec_ivfflat_container_table() && !table_schema->vec_ivfpq_container_table()) {
               ret = OB_TABLE_NOT_EXIST;
             }
           } else {
@@ -6486,8 +6486,8 @@ int ObPartitionUtils::check_param_valid_(
             } else if (OB_ISNULL(table_schema)) {
               ret = OB_TABLE_NOT_EXIST;
               LOG_WARN("data table schema not exist", KR(ret), K(tenant_id), K(related_tid));
-            } else if (table_schema->vec_ivfflat_container_table()) {
-              // do nothing // ignore error if related_tid is ivfflat container table
+            } else if (table_schema->vec_ivfflat_container_table() || table_schema->vec_ivfpq_container_table()) {
+              // do nothing // ignore error if related_tid is ivf container table
             } else {
               ret = OB_TABLE_NOT_EXIST;
               LOG_WARN("local index not exist", KR(ret), K(table_id), K(data_table_id), K(related_tid));
@@ -9662,7 +9662,8 @@ bool is_mlog_table(const ObTableType table_type)
 bool is_vector_using_type(const ObIndexUsingType index_using_type)
 {
   return ObIndexUsingType::USING_HNSW == index_using_type
-          || ObIndexUsingType::USING_IVFFLAT == index_using_type;
+          || ObIndexUsingType::USING_IVFFLAT == index_using_type
+          || ObIndexUsingType::USING_IVFPQ == index_using_type;
 }
 
 const char *schema_type_str(const ObSchemaType schema_type)
